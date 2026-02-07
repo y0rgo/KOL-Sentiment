@@ -1,0 +1,16 @@
+npi,first_name,last_name,credentials,specialty,institution_name,practice_type,city,state
+1234567890,James,Howard Jr,MD,Neurology,UNC School of Medicine,academic,Chapel Hill,NC
+2345678901,Richard,Nowak,MD,Neurology,Yale School of Medicine,academic,New Haven,CT
+3456789012,Vera,Bril,MD,Neurology,University of Toronto,academic,Toronto,ON
+4567890123,Jeffrey,Allen,MD,Neurology,University of Minnesota,academic,Minneapolis,MN
+5678901234,David,Cornblath,MD,Neurology,Johns Hopkins University,academic,Baltimore,MD
+6789012345,Tahseen,Mozaffar,MD,Neurology,UC Irvine Health,academic,Irvine,CA
+7890123456,Gil,Wolfe,MD,Neurology,University at Buffalo,academic,Buffalo,NY
+8901234567,Marinos,Dalakas,MD,Neurology,Thomas Jefferson University,academic,Philadelphia,PA
+9012345678,Henry,Kaminski,MD,Neurology,George Washington University,academic,Washington,DC
+0123456789,Peter,Donofrio,MD,Neurology,Vanderbilt University Medical Center,academic,Nashville,TN
+1122334455,Michael,Shy,MD,Neurology,University of Iowa,academic,Iowa City,IA
+2233445566,Eduardo,Nobile-Orazio,MD,Neurology,University of Milan,academic,Milan,MI
+3344556677,Amanda,Peltier,MD,Neurology,Vanderbilt University Medical Center,academic,Nashville,TN
+4455667788,Sindhu,Ramchandren,MD,Neurology,Michigan Neurology Associates,community,Grand Rapids,MI
+5566778899,Jonathan,Katz,MD,Neurology,California Pacific Medical Center,community,San Francisco,CA

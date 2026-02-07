@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   db:
     image: postgres:16
@@ -20,6 +19,11 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./backend
@@ -35,11 +39,11 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
 
   celery:
     build: ./backend
-    command: celery -A app.tasks worker --loglevel=info
+    command: celery -A app.tasks.app worker --loglevel=info
     volumes:
       - ./backend:/app
     environment:
@@ -49,7 +53,7 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
 
   frontend:
     build: ./frontend
@@ -60,7 +64,9 @@ services:
     ports:
       - "3000:3000"
     environment:
-      VITE_API_URL: http://localhost:8000
+      VITE_API_URL: http://backend:8000
+    depends_on:
+      - backend
 
 volumes:
   pgdata:

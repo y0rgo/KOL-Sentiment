@@ -132,8 +132,8 @@ export default function PersonaCard({ persona }: Props) {
             {competitive.affiliations.map((a, i) => (
               <div key={i} className="text-gray-600">
                 <span className="font-medium">{a.company as string}</span> — {a.type as string}
-                {a.product && ` (${a.product as string})`}
-                {a.year && `, ${a.year}`}
+                {a.product ? ` (${String(a.product)})` : null}
+                {a.year ? `, ${String(a.year)}` : null}
               </div>
             ))}
             {competitive.total_payments && (

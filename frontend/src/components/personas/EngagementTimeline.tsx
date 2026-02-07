@@ -30,8 +30,8 @@ export default function EngagementTimeline({ engagement }: Props) {
           <div key={i} className="text-sm flex items-center gap-3 border-l-2 border-navy-200 pl-3">
             <span className="text-gray-400 text-xs w-20">{formatDate(e.date as string)}</span>
             <span className="font-medium text-gray-700">{formatEngagementType(e.type as string)}</span>
-            {e.channel && <span className="text-gray-500">({e.channel as string})</span>}
-            {e.topic && <span className="text-gray-400 truncate max-w-xs">— {e.topic as string}</span>}
+            {e.channel ? <span className="text-gray-500">({String(e.channel)})</span> : null}
+            {e.topic ? <span className="text-gray-400 truncate max-w-xs">— {String(e.topic)}</span> : null}
           </div>
         ))}
       </div>

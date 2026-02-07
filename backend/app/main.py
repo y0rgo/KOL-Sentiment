@@ -11,7 +11,9 @@ from app.api import physicians, sentiment, engagements, analytics, network, simu
 async def lifespan(app: FastAPI):
     # Run Alembic migrations on startup
     import subprocess
-    subprocess.run(["alembic", "upgrade", "head"], cwd="/app")
+    import os
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    subprocess.run(["alembic", "upgrade", "head"], cwd=backend_dir)
     yield
 
 
