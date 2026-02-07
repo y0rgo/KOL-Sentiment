@@ -1,0 +1,1 @@
+"""Claims data loader - placeholder."""

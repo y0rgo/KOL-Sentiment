@@ -1,0 +1,1 @@
+"""Congress abstract loader - placeholder."""
