@@ -63,6 +63,7 @@ from app.api.analytics import router as analytics_router
 from app.api.sentiment import router as sentiment_router
 from app.api.engagements import router as engagements_router
 from app.api.personas import router as personas_router
+from app.api.tier import router as tier_router
 
 app.include_router(master_list_router, prefix="/api/master-list", tags=["Master List"])
 app.include_router(imports_router, prefix="/api/imports", tags=["Imports"])
@@ -72,6 +73,7 @@ app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"]
 app.include_router(sentiment_router, prefix="/api/sentiment", tags=["Sentiment"])
 app.include_router(engagements_router, prefix="/api/engagements", tags=["Engagements"])
 app.include_router(personas_router, prefix="/api/physicians", tags=["Personas"])
+app.include_router(tier_router, prefix="/api/tier", tags=["Tier Classification"])
 
 
 @app.get("/api/health")

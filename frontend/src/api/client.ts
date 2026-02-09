@@ -94,4 +94,20 @@ export const fetchEngagements = (physicianId: string) =>
 export const fetchPersona = (physicianId: string) =>
   api.get(`/physicians/${physicianId}/persona`);
 
+// Tier Classification
+export const fetchTierConfig = (diseaseId?: string) =>
+  api.get('/tier/config', { params: diseaseId ? { disease_id: diseaseId } : {} });
+
+export const updateTierConfig = (data: { disease_id?: string | null; weights: { dimension: string; weight: number }[] }) =>
+  api.put('/tier/config', data);
+
+export const fetchTierBreakdown = (physicianId: string) =>
+  api.get(`/tier/physician/${physicianId}/breakdown`);
+
+export const recomputeAllTiers = (diseaseId?: string) =>
+  api.post('/tier/recompute', null, { params: diseaseId ? { disease_id: diseaseId } : {} });
+
+export const recomputeSingleTier = (physicianId: string) =>
+  api.post(`/tier/recompute/${physicianId}`);
+
 export default api;

@@ -15,7 +15,9 @@ import {
   MessageSquare,
   Plus,
   X,
+  Target,
 } from 'lucide-react';
+import TierBreakdown from '../components/TierBreakdown';
 
 /* ------------------------------------------------------------------ */
 /*  Tier badge helper                                                  */
@@ -326,6 +328,13 @@ export default function PersonaView() {
               </div>
             ))}
           </dl>
+        </DomainCard>
+
+        {/* -------------------------------------------------------- */}
+        {/*  1b. Tier Breakdown                                       */}
+        {/* -------------------------------------------------------- */}
+        <DomainCard icon={Target} title="Tier Breakdown">
+          {id ? <TierBreakdown physicianId={id} /> : <p className="text-sm text-gray-400">No physician selected</p>}
         </DomainCard>
 
         {/* -------------------------------------------------------- */}

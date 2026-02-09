@@ -177,3 +177,30 @@ export interface Persona {
   engagements: EngagementRecord[];
   competitive: any[];
 }
+
+export interface TierDimensionScore {
+  dimension: string;
+  raw_score: number;
+  weighted_score: number;
+  weight?: number;
+  computed_at?: string;
+}
+
+export interface TierBreakdownResponse {
+  physician_id: string;
+  tier: string | null;
+  tier_score: number | null;
+  dimensions: TierDimensionScore[];
+}
+
+export interface TierWeight {
+  id: string;
+  dimension: string;
+  weight: number;
+  is_active: boolean;
+}
+
+export interface TierConfigResponse {
+  disease_id: string | null;
+  weights: TierWeight[];
+}

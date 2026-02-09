@@ -12,6 +12,7 @@ from app.models.trial import ClinicalTrial, TrialInvestigator
 from app.models.referral import ReferralRelationship
 from app.models.engagement import Engagement
 from app.models.competitive import CompetitiveAffiliation
+from app.models.tier import TierDimensionWeight, TierDimensionScore
 
 __all__ = [
     "Physician",
@@ -33,4 +34,6 @@ __all__ = [
     "ReferralRelationship",
     "Engagement",
     "CompetitiveAffiliation",
+    "TierDimensionWeight",
+    "TierDimensionScore",
 ]

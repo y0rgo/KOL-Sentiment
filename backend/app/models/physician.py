@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 from sqlalchemy import String, Integer, Boolean, Text, Numeric, Date, Index
-from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP
+from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -43,6 +43,21 @@ class Physician(Base):
     completeness_score: Mapped[float | None] = mapped_column(Numeric(5, 2), default=0)
     last_validated_date: Mapped[date | None] = mapped_column(Date)
     validated_by: Mapped[str | None] = mapped_column(String(100))
+
+    # Scientific & Influence Profile (Layer 2 input)
+    h_index: Mapped[int | None] = mapped_column(Integer)
+    total_citations: Mapped[int | None] = mapped_column(Integer)
+    citations_per_paper: Mapped[float | None] = mapped_column(Numeric(6, 2))
+    first_last_author_ratio: Mapped[float | None] = mapped_column(Numeric(3, 2))
+    guideline_committee_count: Mapped[int | None] = mapped_column(Integer, default=0)
+    editorial_board_count: Mapped[int | None] = mapped_column(Integer, default=0)
+    society_leadership_roles: Mapped[list[str] | None] = mapped_column(ARRAY(String))
+    fellowship_program_director: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    uptodate_author: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    cme_faculty: Mapped[bool | None] = mapped_column(Boolean, default=False)
+    patient_advocacy_roles: Mapped[list[str] | None] = mapped_column(ARRAY(String))
+    digital_presence_score: Mapped[float | None] = mapped_column(Numeric(5, 2))
+    named_lectures_awards: Mapped[list[str] | None] = mapped_column(ARRAY(String))
 
     # Tier & Classification (Layer 2)
     tier: Mapped[str | None] = mapped_column(String(30))

@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import PersonaView from './pages/PersonaView';
 import DiscoveryPortal from './pages/DiscoveryPortal';
 import Settings from './pages/Settings';
+import TierConfig from './pages/TierConfig';
 
 export default function App() {
   return (
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/review-queue" element={<ReviewQueue />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/persona/:id" element={<PersonaView />} />
+            <Route path="/tier-config" element={<TierConfig />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
