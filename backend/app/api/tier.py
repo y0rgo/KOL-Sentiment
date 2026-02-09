@@ -103,15 +103,19 @@ async def get_tier_breakdown(physician_id: uuid.UUID, db: AsyncSession = Depends
     )
     scores = result.scalars().all()
 
+    dimensions_scored = scores[0].dimensions_scored if scores else 0
+
     return {
         "physician_id": str(physician_id),
         "tier": physician.tier,
         "tier_score": float(physician.tier_score) if physician.tier_score else None,
+        "dimensions_scored": dimensions_scored,
         "dimensions": [
             {
                 "dimension": s.dimension,
                 "raw_score": float(s.raw_score),
                 "weighted_score": float(s.weighted_score),
+                "has_data": s.has_data,
                 "computed_at": s.computed_at.isoformat() if s.computed_at else None,
             }
             for s in scores

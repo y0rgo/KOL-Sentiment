@@ -2,6 +2,10 @@
 
 Computes tier scores across 8 configurable dimensions, stores audit trail,
 and assigns tier labels based on composite score thresholds.
+
+Dimensions with zero data inputs are excluded from the composite; their weight
+is redistributed proportionally across the scored dimensions so physicians are
+not penalized for data we haven't collected yet.
 """
 import uuid
 from datetime import datetime, timezone
@@ -57,14 +61,6 @@ async def _get_weights(db: AsyncSession, disease_id: uuid.UUID | None = None) ->
     return weights
 
 
-async def _count_publications(db: AsyncSession, physician_id: uuid.UUID) -> int:
-    result = await db.execute(
-        select(func.count()).select_from(PublicationAuthor)
-        .where(PublicationAuthor.physician_id == physician_id)
-    )
-    return result.scalar() or 0
-
-
 async def _count_congress(db: AsyncSession, physician_id: uuid.UUID) -> int:
     result = await db.execute(
         select(func.count()).select_from(CongressActivity)
@@ -81,8 +77,20 @@ async def _count_trials(db: AsyncSession, physician_id: uuid.UUID) -> int:
     return result.scalar() or 0
 
 
+# ---------------------------------------------------------------------------
+#  Per-dimension scoring + has-data checks
+# ---------------------------------------------------------------------------
+
+def _has_data_scientific_impact(physician: Physician) -> bool:
+    return any([
+        physician.h_index and physician.h_index > 0,
+        physician.total_citations and physician.total_citations > 0,
+        physician.first_last_author_ratio is not None,
+        physician.citations_per_paper is not None and float(physician.citations_per_paper) > 0,
+    ])
+
+
 def _score_scientific_impact(physician: Physician) -> float:
-    """Dimension 1: Scientific Impact (h-index, citations, author ratio, citations/paper)."""
     h = float(physician.h_index or 0)
     citations = float(physician.total_citations or 0)
     ratio = float(physician.first_last_author_ratio or 0)
@@ -96,8 +104,16 @@ def _score_scientific_impact(physician: Physician) -> float:
     return (h_score * 0.35 + citation_score * 0.30 + ratio_score * 0.20 + cpp_score * 0.15)
 
 
+def _has_data_clinical_authority(physician: Physician) -> bool:
+    return any([
+        physician.years_in_practice and physician.years_in_practice > 0,
+        physician.fellowship_program_director,
+        physician.uptodate_author,
+        physician.cme_faculty,
+    ])
+
+
 def _score_clinical_authority(physician: Physician) -> float:
-    """Dimension 2: Clinical Authority (years, fellowship director, uptodate, cme)."""
     years = float(physician.years_in_practice or 0)
     base = _cap(years / 30.0 * 100.0)
 
@@ -112,8 +128,15 @@ def _score_clinical_authority(physician: Physician) -> float:
     return _cap(base * 0.50 + bonus)
 
 
+def _has_data_peer_influence(physician: Physician) -> bool:
+    return any([
+        physician.society_leadership_roles and len(physician.society_leadership_roles) > 0,
+        physician.editorial_board_count and physician.editorial_board_count > 0,
+        physician.named_lectures_awards and len(physician.named_lectures_awards) > 0,
+    ])
+
+
 def _score_peer_influence(physician: Physician) -> float:
-    """Dimension 3: Peer Influence (society roles, editorial boards, named lectures)."""
     society_count = len(physician.society_leadership_roles or [])
     editorial = float(physician.editorial_board_count or 0)
     lectures = len(physician.named_lectures_awards or [])
@@ -125,33 +148,36 @@ def _score_peer_influence(physician: Physician) -> float:
     return (society_score * 0.40 + editorial_score * 0.35 + lecture_score * 0.25)
 
 
-async def _score_congress_presence(db: AsyncSession, physician_id: uuid.UUID) -> float:
-    """Dimension 4: Congress Presence (count of activities)."""
-    count = await _count_congress(db, physician_id)
-    return _cap(count * 10.0)
-
-
-async def _score_trial_leadership(db: AsyncSession, physician_id: uuid.UUID) -> float:
-    """Dimension 5: Trial Leadership (count of trial involvements)."""
-    count = await _count_trials(db, physician_id)
-    return _cap(count * 15.0)
+def _has_data_guideline_editorial(physician: Physician) -> bool:
+    return any([
+        physician.guideline_committee_count and physician.guideline_committee_count > 0,
+        physician.editorial_board_count and physician.editorial_board_count > 0,
+    ])
 
 
 def _score_guideline_editorial(physician: Physician) -> float:
-    """Dimension 6: Guideline & Editorial Authority."""
     guideline = float(physician.guideline_committee_count or 0)
     editorial = float(physician.editorial_board_count or 0)
 
     return _cap(guideline * 25.0 + editorial * 20.0)
 
 
+def _has_data_digital_advocacy(physician: Physician) -> bool:
+    return physician.digital_presence_score is not None and float(physician.digital_presence_score) > 0
+
+
 def _score_digital_advocacy(physician: Physician) -> float:
-    """Dimension 7: Digital Advocacy (digital_presence_score already 0-100)."""
     return _cap(float(physician.digital_presence_score or 0))
 
 
+def _has_data_industry_recognition(physician: Physician) -> bool:
+    return any([
+        physician.named_lectures_awards and len(physician.named_lectures_awards) > 0,
+        physician.patient_advocacy_roles and len(physician.patient_advocacy_roles) > 0,
+    ])
+
+
 def _score_industry_recognition(physician: Physician) -> float:
-    """Dimension 8: Industry Recognition (named lectures, patient advocacy)."""
     lectures = len(physician.named_lectures_awards or [])
     advocacy = len(physician.patient_advocacy_roles or [])
 
@@ -178,6 +204,9 @@ async def compute_tier(
 ) -> dict:
     """Compute and store 8-dimension tier score for a single physician.
 
+    Dimensions with no underlying data are excluded; their configured weight is
+    redistributed proportionally across the dimensions that do have data.
+
     Returns dict with dimension_scores, composite, and tier label.
     """
     result = await db.execute(select(Physician).where(Physician.id == physician_id))
@@ -186,50 +215,106 @@ async def compute_tier(
         raise ValueError(f"Physician {physician_id} not found")
 
     weights = await _get_weights(db, disease_id)
-    total_weight = sum(weights.values()) or 100.0
 
-    # Compute raw scores for each dimension
-    raw_scores: dict[str, float] = {}
-    raw_scores["scientific_impact"] = _score_scientific_impact(physician)
-    raw_scores["clinical_authority"] = _score_clinical_authority(physician)
-    raw_scores["peer_influence"] = _score_peer_influence(physician)
-    raw_scores["congress_presence"] = await _score_congress_presence(db, physician_id)
-    raw_scores["trial_leadership"] = await _score_trial_leadership(db, physician_id)
-    raw_scores["guideline_editorial_authority"] = _score_guideline_editorial(physician)
-    raw_scores["digital_advocacy"] = _score_digital_advocacy(physician)
-    raw_scores["industry_recognition"] = _score_industry_recognition(physician)
+    # Compute raw scores and determine which dimensions have data
+    congress_count = await _count_congress(db, physician_id)
+    trial_count = await _count_trials(db, physician_id)
 
-    # Compute weighted scores and composite
-    now = datetime.now(timezone.utc)
-    dimension_scores = []
-    composite = 0.0
+    dimension_info: list[dict] = [
+        {
+            "dimension": "scientific_impact",
+            "has_data": _has_data_scientific_impact(physician),
+            "raw_score": _score_scientific_impact(physician),
+        },
+        {
+            "dimension": "clinical_authority",
+            "has_data": _has_data_clinical_authority(physician),
+            "raw_score": _score_clinical_authority(physician),
+        },
+        {
+            "dimension": "peer_influence",
+            "has_data": _has_data_peer_influence(physician),
+            "raw_score": _score_peer_influence(physician),
+        },
+        {
+            "dimension": "congress_presence",
+            "has_data": congress_count > 0,
+            "raw_score": _cap(congress_count * 10.0),
+        },
+        {
+            "dimension": "trial_leadership",
+            "has_data": trial_count > 0,
+            "raw_score": _cap(trial_count * 15.0),
+        },
+        {
+            "dimension": "guideline_editorial_authority",
+            "has_data": _has_data_guideline_editorial(physician),
+            "raw_score": _score_guideline_editorial(physician),
+        },
+        {
+            "dimension": "digital_advocacy",
+            "has_data": _has_data_digital_advocacy(physician),
+            "raw_score": _score_digital_advocacy(physician),
+        },
+        {
+            "dimension": "industry_recognition",
+            "has_data": _has_data_industry_recognition(physician),
+            "raw_score": _score_industry_recognition(physician),
+        },
+    ]
+
+    # Calculate effective weights — only scored dimensions share the weight
+    scored_dims = [d for d in dimension_info if d["has_data"]]
+    dimensions_scored = len(scored_dims)
+
+    # Sum of configured weights for scored dimensions only
+    scored_weight_sum = sum(weights.get(d["dimension"], 0.0) for d in scored_dims)
 
     # Clear previous scores for this physician
+    now = datetime.now(timezone.utc)
     await db.execute(
         delete(TierDimensionScore)
         .where(TierDimensionScore.physician_id == physician_id)
     )
 
-    for dimension, raw in raw_scores.items():
-        weight = weights.get(dimension, 0.0)
-        weighted = raw * (weight / total_weight)
+    dimension_scores = []
+    composite = 0.0
+
+    for d in dimension_info:
+        dim_name = d["dimension"]
+        raw = d["raw_score"]
+        has_data = d["has_data"]
+        configured_weight = weights.get(dim_name, 0.0)
+
+        if has_data and scored_weight_sum > 0:
+            # Redistribute: this dimension's share = configured_weight / scored_weight_sum * 100
+            effective_weight = configured_weight / scored_weight_sum * 100.0
+            weighted = raw * (effective_weight / 100.0)
+        else:
+            effective_weight = 0.0
+            weighted = 0.0
+
         composite += weighted
 
         score_record = TierDimensionScore(
             id=uuid.uuid4(),
             physician_id=physician_id,
-            dimension=dimension,
+            dimension=dim_name,
             raw_score=round(raw, 2),
             weighted_score=round(weighted, 2),
+            has_data=has_data,
+            dimensions_scored=dimensions_scored,
             computed_at=now,
         )
         db.add(score_record)
 
         dimension_scores.append({
-            "dimension": dimension,
+            "dimension": dim_name,
             "raw_score": round(raw, 2),
-            "weight": weight,
+            "configured_weight": configured_weight,
+            "effective_weight": round(effective_weight, 2),
             "weighted_score": round(weighted, 2),
+            "has_data": has_data,
         })
 
     composite = round(composite, 2)
@@ -246,6 +331,8 @@ async def compute_tier(
         "physician_id": str(physician_id),
         "composite_score": composite,
         "tier": tier_label,
+        "dimensions_scored": dimensions_scored,
+        "dimensions_total": len(dimension_info),
         "dimensions": dimension_scores,
         "computed_at": now.isoformat(),
     }

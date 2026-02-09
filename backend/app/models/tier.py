@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Boolean, Numeric, ForeignKey, UniqueConstraint
+from sqlalchemy import String, Integer, Boolean, Numeric, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,4 +29,6 @@ class TierDimensionScore(Base):
     dimension: Mapped[str] = mapped_column(String(50), nullable=False)
     raw_score: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     weighted_score: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
+    has_data: Mapped[bool] = mapped_column(Boolean, default=True)
+    dimensions_scored: Mapped[int | None] = mapped_column(Integer)
     computed_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), default=datetime.utcnow)

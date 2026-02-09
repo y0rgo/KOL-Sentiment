@@ -87,11 +87,16 @@ export default function TierBreakdown({ physicianId }: { physicianId: string }) 
     );
   }
 
-  const chartData = data.dimensions.map((d) => ({
-    dimension: DIMENSION_LABELS[d.dimension] || d.dimension,
-    raw: d.raw_score,
-    fullMark: 100,
-  }));
+  const chartData = data.dimensions
+    .filter((d: any) => d.has_data !== false)
+    .map((d) => ({
+      dimension: DIMENSION_LABELS[d.dimension] || d.dimension,
+      raw: d.raw_score,
+      fullMark: 100,
+    }));
+
+  const scoredCount = (data as any).dimensions_scored ?? data.dimensions.filter((d: any) => d.has_data !== false).length;
+  const totalDims = data.dimensions.length;
 
   const tierInfo = TIER_COLORS[data.tier || ''] || TIER_COLORS.emerging;
 
@@ -106,6 +111,7 @@ export default function TierBreakdown({ physicianId }: { physicianId: string }) 
           {data.tier_score != null && (
             <span className="text-sm text-gray-600">
               Score: <span className="font-semibold text-gray-800">{data.tier_score.toFixed(1)}</span>/100
+              <span className="ml-2 text-xs text-gray-400">({scoredCount}/{totalDims} dimensions)</span>
             </span>
           )}
         </div>
@@ -160,13 +166,14 @@ export default function TierBreakdown({ physicianId }: { physicianId: string }) 
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {data.dimensions.map((d) => (
-              <tr key={d.dimension} className="text-gray-700">
+            {data.dimensions.map((d: any) => (
+              <tr key={d.dimension} className={d.has_data === false ? 'text-gray-300' : 'text-gray-700'}>
                 <td className="py-1.5 pr-4 font-medium">
                   {DIMENSION_LABELS[d.dimension] || d.dimension}
+                  {d.has_data === false && <span className="ml-1 text-[10px] text-gray-300">(no data)</span>}
                 </td>
-                <td className="py-1.5 pr-4 text-right">{d.raw_score.toFixed(1)}</td>
-                <td className="py-1.5 text-right">{d.weighted_score.toFixed(1)}</td>
+                <td className="py-1.5 pr-4 text-right">{d.has_data === false ? '-' : d.raw_score.toFixed(1)}</td>
+                <td className="py-1.5 text-right">{d.has_data === false ? '-' : d.weighted_score.toFixed(1)}</td>
               </tr>
             ))}
           </tbody>
