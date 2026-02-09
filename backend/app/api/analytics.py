@@ -1,83 +1,117 @@
+"""Analytics API — dashboards and health metrics."""
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, select
+from sqlalchemy import select, func, case, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.physician import Physician
-from app.models.competitive import CompetitiveAffiliation
-from app.schemas.analytics import (
-    CompetitiveLandscapeItem,
-    ConversionFunnelItem,
-    GeographicCoverageItem,
-    TierDistribution,
-)
+from app.models.import_batch import ImportBatch
 
 router = APIRouter()
 
 
-@router.get("/tier-distribution", response_model=list[TierDistribution])
-async def get_tier_distribution(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Physician.tier, func.count(Physician.id))
-        .where(Physician.is_active == True)
-        .where(Physician.tier.isnot(None))
-        .group_by(Physician.tier)
+@router.get("/list-health")
+async def list_health(db: AsyncSession = Depends(get_db)):
+    # Total physicians
+    total_result = await db.execute(select(func.count()).select_from(Physician))
+    total = total_result.scalar()
+
+    # Count by status
+    status_result = await db.execute(
+        select(Physician.record_status, func.count()).group_by(Physician.record_status)
     )
-    return [TierDistribution(tier=row[0], count=row[1]) for row in result.all()]
+    count_by_status = dict(status_result.all())
 
+    # Count by source channel
+    source_result = await db.execute(
+        select(Physician.source_channel, func.count()).group_by(Physician.source_channel)
+    )
+    count_by_source = dict(source_result.all())
 
-@router.get("/conversion-funnel", response_model=list[ConversionFunnelItem])
-async def get_conversion_funnel(db: AsyncSession = Depends(get_db)):
-    from app.models.sentiment import SentimentScore
+    # Average completeness
+    avg_result = await db.execute(select(func.avg(Physician.completeness_score)))
+    avg_completeness = float(avg_result.scalar() or 0)
 
-    latest_sq = (
-        select(
-            SentimentScore.physician_id,
-            func.max(SentimentScore.assessment_date).label("max_date"),
+    # Completeness distribution
+    completeness_dist = {}
+    for label, low, high in [("0-25", 0, 25), ("25-50", 25, 50), ("50-75", 50, 75), ("75-100", 75, 101)]:
+        r = await db.execute(
+            select(func.count()).select_from(Physician).where(
+                and_(
+                    Physician.completeness_score >= low,
+                    Physician.completeness_score < high,
+                )
+            )
         )
-        .group_by(SentimentScore.physician_id)
-        .subquery()
-    )
-    result = await db.execute(
-        select(SentimentScore.conversion_stage, func.count())
-        .join(
-            latest_sq,
-            (SentimentScore.physician_id == latest_sq.c.physician_id)
-            & (SentimentScore.assessment_date == latest_sq.c.max_date),
-        )
-        .where(SentimentScore.conversion_stage.isnot(None))
-        .group_by(SentimentScore.conversion_stage)
-    )
-    stages = ["unaware", "skeptical", "trialing", "adopting", "advocating"]
-    counts = {row[0]: row[1] for row in result.all()}
-    return [ConversionFunnelItem(stage=s, count=counts.get(s, 0)) for s in stages]
+        completeness_dist[label] = r.scalar()
 
-
-@router.get("/geographic-coverage", response_model=list[GeographicCoverageItem])
-async def get_geographic_coverage(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Physician.state, func.count(Physician.id))
-        .where(Physician.is_active == True)
+    # Count by state
+    state_result = await db.execute(
+        select(Physician.state, func.count())
         .where(Physician.state.isnot(None))
         .group_by(Physician.state)
-        .order_by(func.count(Physician.id).desc())
+        .order_by(func.count().desc())
     )
-    return [GeographicCoverageItem(state=row[0], physician_count=row[1]) for row in result.all()]
+    count_by_state = dict(state_result.all())
+
+    return {
+        "total_physicians": total,
+        "count_by_status": count_by_status,
+        "count_by_source": count_by_source,
+        "average_completeness": round(avg_completeness, 2),
+        "completeness_distribution": completeness_dist,
+        "count_by_state": count_by_state,
+    }
 
 
-@router.get("/competitive-landscape", response_model=list[CompetitiveLandscapeItem])
-async def get_competitive_landscape(db: AsyncSession = Depends(get_db)):
+@router.get("/import-activity")
+async def import_activity(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(
-            CompetitiveAffiliation.company,
-            func.count(func.distinct(CompetitiveAffiliation.physician_id)),
-            func.sum(CompetitiveAffiliation.payment_amount),
-        )
-        .where(CompetitiveAffiliation.company.isnot(None))
-        .group_by(CompetitiveAffiliation.company)
-        .order_by(func.count(func.distinct(CompetitiveAffiliation.physician_id)).desc())
+        select(ImportBatch).order_by(ImportBatch.created_at.desc()).limit(20)
     )
-    return [
-        CompetitiveLandscapeItem(company=row[0], physician_count=row[1], total_payments=float(row[2]) if row[2] else None)
-        for row in result.all()
-    ]
+    batches = result.scalars().all()
+
+    # Total by team
+    team_result = await db.execute(
+        select(ImportBatch.team, func.sum(ImportBatch.new_records))
+        .group_by(ImportBatch.team)
+    )
+    by_team = {k: int(v or 0) for k, v in team_result.all()}
+
+    return {
+        "recent_batches": [
+            {
+                "id": str(b.id),
+                "filename": b.filename,
+                "team": b.team,
+                "uploaded_by": b.uploaded_by,
+                "new_records": b.new_records,
+                "total_rows": b.total_rows,
+                "status": b.status,
+                "created_at": b.created_at.isoformat() if b.created_at else None,
+            }
+            for b in batches
+        ],
+        "imported_by_team": by_team,
+    }
+
+
+@router.get("/tier-distribution")
+async def tier_distribution(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Physician.tier, func.count())
+        .where(Physician.record_status == "validated")
+        .group_by(Physician.tier)
+    )
+    return dict(result.all())
+
+
+@router.get("/geographic-coverage")
+async def geographic_coverage(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Physician.state, func.count())
+        .where(Physician.state.isnot(None))
+        .group_by(Physician.state)
+        .order_by(func.count().desc())
+    )
+    return dict(result.all())

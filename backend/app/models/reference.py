@@ -1,5 +1,5 @@
 import uuid
-from sqlalchemy import String, Boolean, Text
+from sqlalchemy import String, Boolean
 from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -11,7 +11,7 @@ class Disease(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
-    icd10_codes: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
+    icd10_codes: Mapped[list[str] | None] = mapped_column(ARRAY(String))
     therapeutic_area: Mapped[str | None] = mapped_column(String(100))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 

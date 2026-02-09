@@ -1,128 +1,179 @@
-from datetime import date
-from typing import Optional
-from uuid import UUID
+"""Sentiment API — scoring and tracking."""
+import uuid
+from datetime import datetime, date
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import desc, func, select
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.sentiment import SentimentScore, SentimentBarrier
 from app.models.physician import Physician
-from app.models.sentiment import SentimentBarrier, SentimentScore
-from app.schemas.sentiment import (
-    SentimentBarrierResponse,
-    SentimentDashboard,
-    SentimentScoreCreate,
-    SentimentScoreResponse,
-)
 
 router = APIRouter()
 
 
-def derive_stage(composite: int) -> str:
-    if composite <= 4:
-        return "unaware"
-    elif composite <= 6:
-        return "skeptical"
-    elif composite <= 9:
-        return "trialing"
-    elif composite <= 12:
-        return "adopting"
-    else:
-        return "advocating"
+@router.post("/score")
+async def create_sentiment_score(body: dict, db: AsyncSession = Depends(get_db)):
+    physician_id = body.get("physician_id")
+    if not physician_id:
+        raise HTTPException(status_code=400, detail="physician_id is required")
 
+    # Verify physician exists and is validated
+    result = await db.execute(
+        select(Physician).where(Physician.id == uuid.UUID(physician_id))
+    )
+    physician = result.scalar_one_or_none()
+    if not physician:
+        raise HTTPException(status_code=404, detail="Physician not found")
+    if physician.record_status != "validated":
+        raise HTTPException(status_code=400, detail="Sentiment scores can only be recorded for validated physicians")
 
-@router.post("/score", response_model=SentimentScoreResponse)
-async def create_sentiment_score(data: SentimentScoreCreate, db: AsyncSession = Depends(get_db)):
-    composite = data.disease_belief_score + data.product_perception_score + data.behavioral_readiness_score
-    stage = derive_stage(composite)
+    disease_belief = body.get("disease_belief_score")
+    product_perception = body.get("product_perception_score")
+    behavioral_readiness = body.get("behavioral_readiness_score")
+
+    # Validate scores are 1-5
+    for name, val in [("disease_belief_score", disease_belief),
+                      ("product_perception_score", product_perception),
+                      ("behavioral_readiness_score", behavioral_readiness)]:
+        if val is not None and (val < 1 or val > 5):
+            raise HTTPException(status_code=400, detail=f"{name} must be between 1 and 5")
+
+    composite = None
+    if disease_belief and product_perception and behavioral_readiness:
+        composite = disease_belief + product_perception + behavioral_readiness
+
+    # Determine conversion stage from composite
+    conversion_stage = None
+    if composite:
+        if composite >= 13:
+            conversion_stage = "advocate"
+        elif composite >= 10:
+            conversion_stage = "adopter"
+        elif composite >= 7:
+            conversion_stage = "interested"
+        elif composite >= 4:
+            conversion_stage = "aware"
+        else:
+            conversion_stage = "unaware"
 
     score = SentimentScore(
-        physician_id=data.physician_id,
-        disease_id=data.disease_id,
-        assessment_date=date.today(),
-        disease_belief_score=data.disease_belief_score,
-        product_perception_score=data.product_perception_score,
-        behavioral_readiness_score=data.behavioral_readiness_score,
-        conversion_stage=stage,
-        score_type=data.score_type,
-        confidence_level="high",
-        scored_by=data.scored_by,
-        notes=data.notes,
+        physician_id=uuid.UUID(physician_id),
+        disease_id=uuid.UUID(body["disease_id"]) if body.get("disease_id") else None,
+        assessment_date=date.fromisoformat(body.get("assessment_date", date.today().isoformat())),
+        disease_belief_score=disease_belief,
+        product_perception_score=product_perception,
+        behavioral_readiness_score=behavioral_readiness,
+        composite_score=composite,
+        conversion_stage=conversion_stage,
+        score_type=body.get("score_type", "field_assessment"),
+        confidence_level=body.get("confidence_level", "medium"),
+        scored_by=body.get("scored_by", "system"),
+        notes=body.get("notes"),
     )
     db.add(score)
-    await db.flush()
 
-    # Create barriers from objections
-    if data.objections_tagged:
-        for objection in data.objections_tagged:
-            barrier = SentimentBarrier(
-                sentiment_score_id=score.id,
-                physician_id=data.physician_id,
-                barrier_type=objection,
-                severity="primary",
-                source="field_report",
-            )
-            db.add(barrier)
+    # Add barriers if provided
+    barriers = body.get("barriers", [])
+    for b in barriers:
+        barrier = SentimentBarrier(
+            sentiment_score_id=score.id,
+            physician_id=uuid.UUID(physician_id),
+            barrier_type=b.get("barrier_type", "unknown"),
+            severity=b.get("severity"),
+            source=b.get("source"),
+            detail=b.get("detail"),
+        )
+        db.add(barrier)
 
     await db.commit()
     await db.refresh(score)
-    return SentimentScoreResponse.model_validate(score)
+    return _score_to_dict(score)
 
 
-@router.get("/physician/{physician_id}/history", response_model=list[SentimentScoreResponse])
-async def get_sentiment_history(physician_id: UUID, db: AsyncSession = Depends(get_db)):
+@router.get("/physician/{physician_id}/history")
+async def get_sentiment_history(
+    physician_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(SentimentScore)
         .where(SentimentScore.physician_id == physician_id)
-        .order_by(desc(SentimentScore.assessment_date))
+        .order_by(SentimentScore.assessment_date.desc())
     )
     scores = result.scalars().all()
-    return [SentimentScoreResponse.model_validate(s) for s in scores]
+    return [_score_to_dict(s) for s in scores]
 
 
-@router.get("/physician/{physician_id}/barriers", response_model=list[SentimentBarrierResponse])
-async def get_sentiment_barriers(physician_id: UUID, db: AsyncSession = Depends(get_db)):
+@router.get("/physician/{physician_id}/barriers")
+async def get_barriers(
+    physician_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(SentimentBarrier)
         .where(SentimentBarrier.physician_id == physician_id)
-        .order_by(desc(SentimentBarrier.created_at))
+        .order_by(SentimentBarrier.created_at.desc())
     )
     barriers = result.scalars().all()
-    return [SentimentBarrierResponse.model_validate(b) for b in barriers]
+    return [
+        {
+            "id": str(b.id),
+            "barrier_type": b.barrier_type,
+            "severity": b.severity,
+            "source": b.source,
+            "detail": b.detail,
+            "created_at": b.created_at.isoformat() if b.created_at else None,
+        }
+        for b in barriers
+    ]
 
 
-@router.get("/dashboard", response_model=SentimentDashboard)
-async def get_sentiment_dashboard(db: AsyncSession = Depends(get_db)):
-    # Get latest sentiment per physician using a subquery
-    latest_sq = (
+@router.get("/dashboard")
+async def sentiment_dashboard(db: AsyncSession = Depends(get_db)):
+    from sqlalchemy import func
+
+    # Overall stats
+    result = await db.execute(
         select(
-            SentimentScore.physician_id,
-            func.max(SentimentScore.assessment_date).label("max_date"),
-        )
-        .group_by(SentimentScore.physician_id)
-        .subquery()
-    )
-
-    latest_scores_q = (
-        select(SentimentScore)
-        .join(
-            latest_sq,
-            (SentimentScore.physician_id == latest_sq.c.physician_id)
-            & (SentimentScore.assessment_date == latest_sq.c.max_date),
+            func.count(SentimentScore.id),
+            func.avg(SentimentScore.composite_score),
         )
     )
-    result = await db.execute(latest_scores_q)
-    scores = result.scalars().all()
+    row = result.one()
+    total_scores = row[0]
+    avg_composite = float(row[1]) if row[1] else 0
 
-    # Stage distribution
-    stage_dist: dict[str, int] = {}
-    for s in scores:
-        stage = s.conversion_stage or "unknown"
-        stage_dist[stage] = stage_dist.get(stage, 0) + 1
-
-    return SentimentDashboard(
-        stage_distribution=stage_dist,
-        tier_sentiment={},
-        geographic_sentiment={},
+    # By conversion stage
+    stage_result = await db.execute(
+        select(SentimentScore.conversion_stage, func.count())
+        .where(SentimentScore.conversion_stage.isnot(None))
+        .group_by(SentimentScore.conversion_stage)
     )
+    by_stage = dict(stage_result.all())
+
+    return {
+        "total_scores": total_scores,
+        "average_composite": round(avg_composite, 2),
+        "by_conversion_stage": by_stage,
+    }
+
+
+def _score_to_dict(s: SentimentScore) -> dict:
+    return {
+        "id": str(s.id),
+        "physician_id": str(s.physician_id),
+        "disease_id": str(s.disease_id) if s.disease_id else None,
+        "assessment_date": s.assessment_date.isoformat() if s.assessment_date else None,
+        "disease_belief_score": s.disease_belief_score,
+        "product_perception_score": s.product_perception_score,
+        "behavioral_readiness_score": s.behavioral_readiness_score,
+        "composite_score": s.composite_score,
+        "conversion_stage": s.conversion_stage,
+        "score_type": s.score_type,
+        "confidence_level": s.confidence_level,
+        "scored_by": s.scored_by,
+        "notes": s.notes,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+    }

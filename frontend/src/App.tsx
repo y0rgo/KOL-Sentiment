@@ -1,29 +1,33 @@
-import { Route, Routes } from 'react-router-dom'
-import PageLayout from './components/layout/PageLayout'
-import Dashboard from './pages/Dashboard'
-import PhysicianList from './pages/PhysicianList'
-import PersonaView from './pages/PersonaView'
-import SentimentDashboard from './pages/SentimentDashboard'
-import NetworkExplorer from './pages/NetworkExplorer'
-import EngagementPlanner from './pages/EngagementPlanner'
-import AdBoardSimulator from './pages/AdBoardSimulator'
-import DataIngestion from './pages/DataIngestion'
-import Settings from './pages/Settings'
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Sidebar from './components/layout/Sidebar';
+import Header from './components/layout/Header';
+import MasterList from './pages/MasterList';
+import ImportData from './pages/ImportData';
+import ReviewQueue from './pages/ReviewQueue';
+import Dashboard from './pages/Dashboard';
+import PersonaView from './pages/PersonaView';
+import DiscoveryPortal from './pages/DiscoveryPortal';
+import Settings from './pages/Settings';
 
 export default function App() {
   return (
-    <PageLayout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/physicians" element={<PhysicianList />} />
-        <Route path="/physicians/:id" element={<PersonaView />} />
-        <Route path="/sentiment" element={<SentimentDashboard />} />
-        <Route path="/network" element={<NetworkExplorer />} />
-        <Route path="/engagements" element={<EngagementPlanner />} />
-        <Route path="/simulator" element={<AdBoardSimulator />} />
-        <Route path="/data" element={<DataIngestion />} />
-        <Route path="/settings" element={<Settings />} />
-      </Routes>
-    </PageLayout>
-  )
+    <div className="flex h-screen bg-page">
+      <Sidebar />
+      <div className="flex-1 flex flex-col overflow-hidden ml-64">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-6">
+          <Routes>
+            <Route path="/" element={<Navigate to="/master-list" replace />} />
+            <Route path="/master-list" element={<MasterList />} />
+            <Route path="/import" element={<ImportData />} />
+            <Route path="/discovery" element={<DiscoveryPortal />} />
+            <Route path="/review-queue" element={<ReviewQueue />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/persona/:id" element={<PersonaView />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </main>
+      </div>
+    </div>
+  );
 }

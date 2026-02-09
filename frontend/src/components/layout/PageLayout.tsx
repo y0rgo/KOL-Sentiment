@@ -1,17 +1,13 @@
-import { ReactNode } from 'react'
-import Sidebar from './Sidebar'
-import Header from './Header'
-
-export default function PageLayout({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col">
-        <Header />
-        <main className="flex-1 p-6">
-          {children}
-        </main>
-      </div>
-    </div>
-  )
+interface PageLayoutProps {
+  children: React.ReactNode;
 }
+
+const PageLayout: React.FC<PageLayoutProps> = ({ children }) => {
+  return (
+    <div className="max-w-7xl mx-auto px-6 py-6">
+      {children}
+    </div>
+  );
+};
+
+export default PageLayout;

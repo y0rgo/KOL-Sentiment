@@ -1,13 +1,17 @@
 import asyncio
 import os
+import sys
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import create_async_engine
 
+# Add the backend directory to path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
 from app.database import Base
-from app.models import *  # noqa: F401,F403 - import all models for autogenerate
+from app.models import *  # noqa: F401, F403
 
 config = context.config
 
@@ -16,13 +20,18 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-# Override URL from environment if available
-database_url = os.environ.get("DATABASE_URL", config.get_main_option("sqlalchemy.url"))
+
+def get_url():
+    return os.environ.get(
+        "DATABASE_URL",
+        config.get_main_option("sqlalchemy.url"),
+    )
 
 
 def run_migrations_offline() -> None:
+    url = get_url()
     context.configure(
-        url=database_url,
+        url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
@@ -38,7 +47,7 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations() -> None:
-    connectable = create_async_engine(database_url, poolclass=pool.NullPool)
+    connectable = create_async_engine(get_url(), poolclass=pool.NullPool)
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()

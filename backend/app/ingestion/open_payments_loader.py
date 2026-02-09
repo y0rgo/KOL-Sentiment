@@ -1,1 +1,0 @@
-"""Open Payments loader - placeholder."""

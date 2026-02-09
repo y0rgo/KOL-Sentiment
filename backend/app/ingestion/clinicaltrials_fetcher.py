@@ -1,1 +1,0 @@
-"""ClinicalTrials.gov fetcher - placeholder."""

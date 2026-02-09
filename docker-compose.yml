@@ -1,11 +1,10 @@
-version: '3.8'
 services:
   db:
     image: postgres:16
     environment:
       POSTGRES_DB: kol_platform
       POSTGRES_USER: kol_admin
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme_in_production}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     ports:
       - "5432:5432"
     volumes:
@@ -20,6 +19,11 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   backend:
     build: ./backend
@@ -29,13 +33,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://kol_admin:${DB_PASSWORD:-changeme_in_production}@db:5432/kol_platform
+      DATABASE_URL: postgresql+asyncpg://kol_admin:${DB_PASSWORD:-changeme}@db:5432/kol_platform
       REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
 
   celery:
     build: ./backend
@@ -43,24 +47,26 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      DATABASE_URL: postgresql+asyncpg://kol_admin:${DB_PASSWORD:-changeme_in_production}@db:5432/kol_platform
+      DATABASE_URL: postgresql+asyncpg://kol_admin:${DB_PASSWORD:-changeme}@db:5432/kol_platform
       REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
 
   frontend:
     build: ./frontend
-    command: npm run dev
+    command: npm run dev -- --host 0.0.0.0
     volumes:
       - ./frontend:/app
       - /app/node_modules
     ports:
       - "3000:3000"
     environment:
-      VITE_API_URL: http://localhost:8000
+      VITE_API_URL: http://backend:8000
+    depends_on:
+      - backend
 
 volumes:
   pgdata:

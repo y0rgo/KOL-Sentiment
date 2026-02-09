@@ -1,6 +1,6 @@
 export interface Physician {
   id: string;
-  npi: string;
+  npi: string | null;
   first_name: string;
   last_name: string;
   credentials: string | null;
@@ -12,13 +12,21 @@ export interface Physician {
   city: string | null;
   state: string | null;
   region: string | null;
+  country: string | null;
   years_in_practice: number | null;
   fellowship_training: string | null;
   institutional_role: string | null;
+  record_status: string;
+  status_changed_at: string | null;
+  status_changed_by: string | null;
+  decline_reason: string | null;
+  source_channel: string;
+  source_detail: string | null;
+  completeness_score: number;
   tier: string | null;
   tier_score: number | null;
-  tier_last_assessed: string | null;
-  source: string | null;
+  priority_score: number | null;
+  priority_rank: number | null;
   is_active: boolean;
   notes: string | null;
   created_at: string;
@@ -30,13 +38,93 @@ export interface PhysicianListResponse {
   total: number;
   page: number;
   page_size: number;
+  total_pages: number;
 }
 
-export interface PhysicianImportResult {
+export interface ImportBatch {
+  id: string;
+  filename: string;
+  uploaded_by: string;
+  team: string;
+  description: string;
   total_rows: number;
-  created: number;
-  updated: number;
-  errors: string[];
+  new_records: number;
+  updated_records: number;
+  duplicate_records: number;
+  error_records: number;
+  status: string;
+  created_at: string;
+  completed_at: string | null;
+  pending_conflicts?: number;
+}
+
+export interface ImportConflict {
+  id: string;
+  import_batch_id: string;
+  physician_id: string;
+  conflict_type: string;
+  field_name: string;
+  existing_value: string;
+  incoming_value: string;
+  resolution: string;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  physician_name?: string;
+  physician_institution?: string;
+}
+
+export interface FieldNomination {
+  id: string;
+  npi: string | null;
+  first_name: string;
+  last_name: string;
+  credentials: string | null;
+  specialty: string | null;
+  institution_name: string | null;
+  city: string | null;
+  state: string | null;
+  nominated_by: string;
+  nominator_role: string | null;
+  disease_context: string | null;
+  rationale: string;
+  observed_influence: string | null;
+  matched_physician_id: string | null;
+  review_status: string;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_notes: string | null;
+  created_at: string;
+  existing_physician?: {
+    id: string;
+    name: string;
+    record_status: string;
+    institution_name: string;
+  };
+}
+
+export interface ReviewQueueItem {
+  type: 'discovery' | 'nomination';
+  id: string;
+  first_name: string;
+  last_name: string;
+  credentials: string | null;
+  specialty: string | null;
+  institution_name: string | null;
+  city: string | null;
+  state: string | null;
+  evidence_or_rationale: string;
+  source_detail: string;
+  disease_context?: string;
+  score: number | null;
+  created_at: string;
+}
+
+export interface ReviewQueueStats {
+  total_pending: number;
+  pending_discoveries: number;
+  pending_nominations: number;
+  oldest_pending_date: string | null;
 }
 
 export interface SentimentScore {
@@ -56,28 +144,7 @@ export interface SentimentScore {
   created_at: string;
 }
 
-export interface SentimentScoreCreate {
-  physician_id: string;
-  disease_id?: string;
-  disease_belief_score: number;
-  product_perception_score: number;
-  behavioral_readiness_score: number;
-  score_type?: string;
-  scored_by?: string;
-  notes?: string;
-  objections_tagged?: string[];
-}
-
-export interface SentimentBarrier {
-  id: string;
-  barrier_type: string;
-  severity: string | null;
-  source: string | null;
-  detail: string | null;
-  created_at: string;
-}
-
-export interface Engagement {
+export interface EngagementRecord {
   id: string;
   physician_id: string;
   engagement_type: string;
@@ -86,167 +153,27 @@ export interface Engagement {
   duration_minutes: number | null;
   topic: string | null;
   disease_id: string | null;
-  field_disease_belief_score: number | null;
-  field_product_perception_score: number | null;
-  field_behavioral_readiness_score: number | null;
-  objections_tagged: string[] | null;
   field_notes: string | null;
   recorded_by: string | null;
   created_at: string;
 }
 
-export interface EngagementCreate {
-  physician_id: string;
-  engagement_type: string;
-  engagement_date: string;
-  channel?: string;
-  duration_minutes?: number;
-  topic?: string;
-  disease_id?: string;
-  field_disease_belief_score?: number;
-  field_product_perception_score?: number;
-  field_behavioral_readiness_score?: number;
-  objections_tagged?: string[];
-  field_notes?: string;
-  recorded_by?: string;
+export interface ListHealth {
+  total_physicians: number;
+  count_by_status: Record<string, number>;
+  count_by_source: Record<string, number>;
+  average_completeness: number;
+  completeness_distribution: Record<string, number>;
+  count_by_state: Record<string, number>;
 }
 
-export interface PersonaOutput {
-  identity: IdentityDomain;
-  prescribing: PrescribingDomain;
-  research: ResearchDomain;
-  influence: InfluenceDomain;
-  competitive: CompetitiveDomain;
-  sentiment: SentimentDomain;
-  engagement: EngagementDomain;
-  recommended_actions: RecommendedAction[];
+export interface Persona {
+  identity: Physician & { tier_score: number | null };
+  prescribing: any[];
+  publications: any[];
+  congress: any[];
+  trials: any[];
+  sentiment: SentimentScore[];
+  engagements: EngagementRecord[];
+  competitive: any[];
 }
-
-export interface IdentityDomain {
-  id: string;
-  npi: string;
-  first_name: string;
-  last_name: string;
-  credentials: string | null;
-  specialty: string | null;
-  subspecialty: string | null;
-  practice_type: string | null;
-  institution_name: string | null;
-  institution_type: string | null;
-  city: string | null;
-  state: string | null;
-  region: string | null;
-  years_in_practice: number | null;
-  tier: string | null;
-  tier_score: number | null;
-  institutional_role: string | null;
-}
-
-export interface PrescribingDomain {
-  total_patients: number;
-  products: Record<string, unknown>[];
-  trend: Record<string, unknown>[];
-  pa_rate: number | null;
-}
-
-export interface ResearchDomain {
-  total_publications: number;
-  publications: Record<string, unknown>[];
-  congress_presentations: Record<string, unknown>[];
-}
-
-export interface InfluenceDomain {
-  referral_connections: number;
-  referrals_in: Record<string, unknown>[];
-  referrals_out: Record<string, unknown>[];
-  trial_participation: Record<string, unknown>[];
-}
-
-export interface CompetitiveDomain {
-  affiliations: Record<string, unknown>[];
-  total_payments: number | null;
-}
-
-export interface SentimentDomain {
-  current_scores: Record<string, unknown> | null;
-  history: Record<string, unknown>[];
-  barriers: Record<string, unknown>[];
-  conversion_stage: string | null;
-  confidence: string | null;
-}
-
-export interface EngagementDomain {
-  total_engagements: number;
-  recent: Record<string, unknown>[];
-  by_type: Record<string, number>;
-  last_engagement_date: string | null;
-}
-
-export interface RecommendedAction {
-  action: string;
-  rationale: string;
-  priority: string;
-}
-
-export interface TierDistribution {
-  tier: string;
-  count: number;
-}
-
-export interface ConversionFunnelItem {
-  stage: string;
-  count: number;
-}
-
-export interface GeographicCoverageItem {
-  state: string;
-  physician_count: number;
-  avg_sentiment: number | null;
-}
-
-export interface NetworkGraph {
-  nodes: { id: string; name: string; tier: string | null }[];
-  links: { source: string; target: string; volume: number | null }[];
-}
-
-export const OBJECTION_OPTIONS = [
-  'wants_more_rwe',
-  'igG_lowering_concern',
-  'ivig_access_easier',
-  'patient_sc_reluctance',
-  'retreatment_timing_unclear',
-  'cost_concern',
-  'diagnostic_uncertainty',
-  'competitive_preference',
-  'institutional_barrier',
-] as const;
-
-export const ENGAGEMENT_TYPES = [
-  'advisory_board',
-  'speaker_program',
-  'msl_visit',
-  'commercial_call',
-  'congress_meeting',
-  'investigator_study',
-  'peer_to_peer',
-  'preceptorship',
-  'publication_collab',
-  'medical_info_request',
-  'patient_program_interaction',
-] as const;
-
-export const TIER_ORDER = [
-  'global_national',
-  'regional_institutional',
-  'local_community',
-  'rising_star',
-  'monitor',
-] as const;
-
-export const CONVERSION_STAGES = [
-  'unaware',
-  'skeptical',
-  'trialing',
-  'adopting',
-  'advocating',
-] as const;

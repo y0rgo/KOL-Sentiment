@@ -1,0 +1,11 @@
+first_name,last_name,credentials,specialty,institution_name,city,state,practice_type,country
+James,Howard Jr,MD,Neurology,UNC Chapel Hill,Chapel Hill,NC,academic,US
+Richard,Nowak,MD,Neurology,Yale School of Medicine,New Haven,CT,academic,US
+Jeffrey,Allen,MD,Neurology,University of Minnesota,Minneapolis,MN,academic,US
+Tahseen,Mozaffar,MD,Neurology,UC Irvine Medical Center,Orange,CA,academic,US
+Senda,Ajroud-Driss,MD,Neurology,Northwestern,Chicago,IL,academic,US
+Amanda,Peltier,MD,Neurology,Vanderbilt,Nashville,TN,academic,US
+Satyamurti,Ramchandren,MD,Neurology,Michigan Neurology Associates,Ann Arbor,MI,community,US
+Jonathan,Katz,MD,Neurology,CPMC,San Francisco,CA,community,US
+Mamatha,Pasnoor,MD,Neurology,University of Kansas,Kansas City,KS,academic,US
+Sindhu,Ramchandren,MD,Neurology,University of Michigan,Ann Arbor,MI,academic,US
