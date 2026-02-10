@@ -204,3 +204,77 @@ export interface TierConfigResponse {
   disease_id: string | null;
   weights: TierWeight[];
 }
+
+// Priority Scoring
+export interface PriorityFactor {
+  factor: string;
+  label: string;
+  score: number;
+}
+
+export interface PriorityBreakdownResponse {
+  physician_id: string;
+  composite_score: number;
+  priority_rank: number | null;
+  factors_scored: number;
+  factors: PriorityFactor[];
+  computed_at: string | null;
+}
+
+export interface PriorityScoreItem {
+  physician_id: string;
+  name: string;
+  institution: string | null;
+  tier: string | null;
+  tier_score: number | null;
+  composite_score: number;
+  priority_rank: number | null;
+  prescribing_opportunity: number;
+  influence_leverage: number;
+  sentiment_gap: number;
+  engagement_deficit: number;
+  competitive_urgency: number;
+  completeness_gap: number;
+  factors_scored: number;
+  computed_at: string | null;
+}
+
+export interface PriorityScoresResponse {
+  items: PriorityScoreItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface PriorityMatrixPoint {
+  physician_id: string;
+  name: string;
+  tier: string | null;
+  tier_score: number;
+  priority_score: number;
+  priority_rank: number | null;
+  institution: string | null;
+}
+
+export interface PriorityMatrixResponse {
+  points: PriorityMatrixPoint[];
+  summary: {
+    total: number;
+    high_priority_high_tier: number;
+    high_priority_low_tier: number;
+    low_priority_high_tier: number;
+    low_priority_low_tier: number;
+  };
+}
+
+export interface PriorityWeight {
+  id: string;
+  factor: string;
+  weight: number;
+  is_active: boolean;
+}
+
+export interface PriorityConfigResponse {
+  disease_id: string | null;
+  weights: PriorityWeight[];
+}

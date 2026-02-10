@@ -110,4 +110,26 @@ export const recomputeAllTiers = (diseaseId?: string) =>
 export const recomputeSingleTier = (physicianId: string) =>
   api.post(`/tier/recompute/${physicianId}`);
 
+// Priority Scoring
+export const fetchPriorityConfig = (diseaseId?: string) =>
+  api.get('/priority/config', { params: diseaseId ? { disease_id: diseaseId } : {} });
+
+export const updatePriorityConfig = (data: { disease_id?: string | null; weights: { factor: string; weight: number }[] }) =>
+  api.put('/priority/config', data);
+
+export const fetchPriorityScores = (params?: Record<string, any>) =>
+  api.get('/priority/scores', { params });
+
+export const fetchPriorityBreakdown = (physicianId: string) =>
+  api.get(`/priority/physician/${physicianId}`);
+
+export const recomputeAllPriorities = (diseaseId?: string) =>
+  api.post('/priority/recompute', null, { params: diseaseId ? { disease_id: diseaseId } : {} });
+
+export const recomputeSinglePriority = (physicianId: string) =>
+  api.post(`/priority/recompute/${physicianId}`);
+
+export const fetchPriorityMatrix = () =>
+  api.get('/priority/matrix');
+
 export default api;

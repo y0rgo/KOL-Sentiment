@@ -8,6 +8,7 @@ import {
   Inbox,
   BarChart3,
   Sliders,
+  Target,
   Settings,
 } from 'lucide-react';
 import { fetchReviewQueueStats } from '../../api/client';
@@ -45,6 +46,7 @@ const Sidebar: React.FC = () => {
     { label: 'Discovery Portal', path: '/discovery', icon: Search },
     { label: 'Review Queue', path: '/review-queue', icon: Inbox, badge: pendingCount },
     { label: 'Dashboard', path: '/dashboard', icon: BarChart3 },
+    { label: 'Priority Matrix', path: '/priority-matrix', icon: Target },
     { label: 'Tier Config', path: '/tier-config', icon: Sliders },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];

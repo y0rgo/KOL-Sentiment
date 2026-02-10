@@ -9,6 +9,7 @@ import PersonaView from './pages/PersonaView';
 import DiscoveryPortal from './pages/DiscoveryPortal';
 import Settings from './pages/Settings';
 import TierConfig from './pages/TierConfig';
+import PriorityMatrix from './pages/PriorityMatrix';
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/persona/:id" element={<PersonaView />} />
             <Route path="/tier-config" element={<TierConfig />} />
+            <Route path="/priority-matrix" element={<PriorityMatrix />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>

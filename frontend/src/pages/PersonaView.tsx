@@ -18,6 +18,7 @@ import {
   Target,
 } from 'lucide-react';
 import TierBreakdown from '../components/TierBreakdown';
+import PriorityBreakdown from '../components/PriorityBreakdown';
 
 /* ------------------------------------------------------------------ */
 /*  Tier badge helper                                                  */
@@ -335,6 +336,13 @@ export default function PersonaView() {
         {/* -------------------------------------------------------- */}
         <DomainCard icon={Target} title="Tier Breakdown">
           {id ? <TierBreakdown physicianId={id} /> : <p className="text-sm text-gray-400">No physician selected</p>}
+        </DomainCard>
+
+        {/* -------------------------------------------------------- */}
+        {/*  1c. Priority Breakdown                                   */}
+        {/* -------------------------------------------------------- */}
+        <DomainCard icon={Target} title="Priority Breakdown">
+          {id ? <PriorityBreakdown physicianId={id} /> : <p className="text-sm text-gray-400">No physician selected</p>}
         </DomainCard>
 
         {/* -------------------------------------------------------- */}

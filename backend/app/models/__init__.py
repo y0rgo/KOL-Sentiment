@@ -13,6 +13,7 @@ from app.models.referral import ReferralRelationship
 from app.models.engagement import Engagement
 from app.models.competitive import CompetitiveAffiliation
 from app.models.tier import TierDimensionWeight, TierDimensionScore
+from app.models.priority import PriorityWeight, PriorityScore
 
 __all__ = [
     "Physician",
@@ -36,4 +37,6 @@ __all__ = [
     "CompetitiveAffiliation",
     "TierDimensionWeight",
     "TierDimensionScore",
+    "PriorityWeight",
+    "PriorityScore",
 ]

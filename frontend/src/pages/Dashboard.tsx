@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { fetchListHealth, fetchImportActivity, fetchReviewQueueStats } from '../api/client';
-import type { ListHealth, ReviewQueueStats } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { fetchListHealth, fetchImportActivity, fetchReviewQueueStats, fetchPriorityScores } from '../api/client';
+import type { ListHealth, ReviewQueueStats, PriorityScoreItem } from '../types';
 import type { ImportBatch } from '../types';
 import {
   PieChart,
@@ -15,7 +16,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { Users, CheckCircle, Clock, BarChart3, TrendingUp } from 'lucide-react';
+import { Users, CheckCircle, Clock, BarChart3, TrendingUp, Target } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
@@ -99,22 +100,26 @@ const renderCustomLabel = ({
 /* ------------------------------------------------------------------ */
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [listHealth, setListHealth] = useState<ListHealth | null>(null);
   const [importActivity, setImportActivity] = useState<ImportBatch[]>([]);
   const [reviewStats, setReviewStats] = useState<ReviewQueueStats | null>(null);
+  const [topPriority, setTopPriority] = useState<PriorityScoreItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [healthRes, activityRes, reviewRes] = await Promise.all([
+        const [healthRes, activityRes, reviewRes, priorityRes] = await Promise.all([
           fetchListHealth(),
           fetchImportActivity(),
           fetchReviewQueueStats(),
+          fetchPriorityScores({ page: 1, page_size: 5 }).catch(() => ({ data: { items: [] } })),
         ]);
         setListHealth(healthRes.data);
         setImportActivity(Array.isArray(activityRes.data) ? activityRes.data.slice(0, 5) : []);
         setReviewStats(reviewRes.data);
+        setTopPriority(priorityRes.data.items ?? []);
       } catch (err) {
         console.error('Failed to load dashboard data', err);
       } finally {
@@ -375,7 +380,61 @@ export default function Dashboard() {
       </div>
 
       {/* ============================================================ */}
-      {/*  ROW 4 – Recent Import Activity                               */}
+      {/*  ROW 4 – Top 5 Priority Physicians                            */}
+      {/* ============================================================ */}
+      <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Target className="h-5 w-5 text-indigo-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Top 5 Priority Physicians</h2>
+          </div>
+          <button
+            onClick={() => navigate('/priority-matrix')}
+            className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+          >
+            View All &rarr;
+          </button>
+        </div>
+        {topPriority.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="text-left py-2 px-3 font-semibold text-gray-600">Rank</th>
+                  <th className="text-left py-2 px-3 font-semibold text-gray-600">Physician</th>
+                  <th className="text-left py-2 px-3 font-semibold text-gray-600">Institution</th>
+                  <th className="text-left py-2 px-3 font-semibold text-gray-600">Tier</th>
+                  <th className="text-right py-2 px-3 font-semibold text-gray-600">Priority Score</th>
+                </tr>
+              </thead>
+              <tbody>
+                {topPriority.map((item, idx) => (
+                  <tr
+                    key={item.physician_id}
+                    className={`${idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'} hover:bg-indigo-50 cursor-pointer transition-colors`}
+                    onClick={() => navigate(`/persona/${item.physician_id}`)}
+                  >
+                    <td className="py-2 px-3">
+                      <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
+                        {item.priority_rank ?? idx + 1}
+                      </span>
+                    </td>
+                    <td className="py-2 px-3 font-medium text-gray-900">{item.name}</td>
+                    <td className="py-2 px-3 text-gray-600 truncate max-w-[180px]">{item.institution || '-'}</td>
+                    <td className="py-2 px-3 text-gray-600 capitalize">{item.tier?.replace('_', ' ') || '-'}</td>
+                    <td className="py-2 px-3 text-right font-semibold text-gray-900">{item.composite_score.toFixed(1)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-gray-400 text-center py-8">No priority scores computed yet</p>
+        )}
+      </div>
+
+      {/* ============================================================ */}
+      {/*  ROW 5 – Recent Import Activity                               */}
       {/* ============================================================ */}
       <div className="bg-white rounded-lg shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Recent Import Activity</h2>
