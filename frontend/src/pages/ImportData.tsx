@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import {
   uploadImport,
   fetchBatches,
@@ -9,6 +11,8 @@ import {
 } from '../api/client';
 import { ImportBatch, ImportConflict } from '../types';
 import { formatDate, formatDateTime } from '../utils/formatters';
+import { SkeletonPage } from '../components/ui/Skeleton';
+import { EmptyState } from '../components/ui/EmptyState';
 import {
   Upload,
   FileText,
@@ -16,6 +20,16 @@ import {
   Check,
   X,
   ChevronRight,
+  CheckCircle2,
+  XCircle,
+  RefreshCw,
+  Copy,
+  ArrowRight,
+  Pencil,
+  Shield,
+  ArrowDownToLine,
+  Clock,
+  History,
 } from 'lucide-react';
 
 /* ------------------------------------------------------------------ */
@@ -39,6 +53,39 @@ const TEAMS = [
   'Field',
   'Other',
 ] as const;
+
+/* ------------------------------------------------------------------ */
+/*  Status badge helper                                               */
+/* ------------------------------------------------------------------ */
+
+function BatchStatusBadge({ batch }: { batch: ImportBatch }) {
+  const pending = batch.pending_conflicts ?? 0;
+
+  if (batch.status === 'processing') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200">
+        <Clock className="w-3 h-3" />
+        Processing
+      </span>
+    );
+  }
+
+  if (pending > 0) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200">
+        <AlertTriangle className="w-3 h-3" />
+        Has Conflicts
+      </span>
+    );
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 ring-1 ring-inset ring-green-200">
+      <CheckCircle2 className="w-3 h-3" />
+      Complete
+    </span>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                         */
@@ -134,6 +181,7 @@ const ImportData: React.FC = () => {
         setUploadError(null);
       } else {
         setUploadError('Please upload a CSV or Excel file (.csv, .xlsx, .xls)');
+        toast.error('Unsupported file format. Please use CSV or Excel files.');
       }
     }
   };
@@ -155,10 +203,12 @@ const ImportData: React.FC = () => {
       setDescription('');
       if (fileInputRef.current) fileInputRef.current.value = '';
       await loadBatches();
+      toast.success('File imported successfully');
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : 'Upload failed. Please try again.';
       setUploadError(message);
+      toast.error(message);
     } finally {
       setUploading(false);
     }
@@ -203,8 +253,10 @@ const ImportData: React.FC = () => {
       setManualInputId(null);
       setManualValue('');
       await loadBatches();
+      toast.success('Conflict resolved');
     } catch {
       console.error('Failed to resolve conflict');
+      toast.error('Failed to resolve conflict');
     }
   };
 
@@ -246,8 +298,10 @@ const ImportData: React.FC = () => {
       );
       setSelectedConflictIds(new Set());
       await loadBatches();
+      toast.success(`Resolved ${selectedConflictIds.size} conflicts`);
     } catch {
       console.error('Bulk resolve failed');
+      toast.error('Bulk resolve failed');
     } finally {
       setBulkResolving(false);
     }
@@ -257,16 +311,35 @@ const ImportData: React.FC = () => {
   /*  Render helpers                                                  */
   /* ================================================================ */
 
-  const StatBadge: React.FC<{
+  const ResultStat: React.FC<{
     label: string;
     value: number;
+    icon: React.ReactNode;
     color: string;
-  }> = ({ label, value, color }) => (
-    <div className="flex flex-col items-center">
-      <span className={`text-2xl font-bold ${color}`}>{value}</span>
-      <span className="text-xs text-gray-500 mt-1">{label}</span>
+    bgColor: string;
+  }> = ({ label, value, icon, color, bgColor }) => (
+    <div className={`flex items-center gap-3 rounded-lg px-4 py-3 ${bgColor}`}>
+      <div className={`flex-shrink-0 ${color}`}>{icon}</div>
+      <div>
+        <p className={`text-xl font-bold ${color}`}>{value}</p>
+        <p className="text-xs text-gray-500 font-medium">{label}</p>
+      </div>
     </div>
   );
+
+  /* ================================================================ */
+  /*  Loading state                                                   */
+  /* ================================================================ */
+
+  if (batchesLoading && batches.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 lg:p-10">
+        <div className="max-w-7xl mx-auto">
+          <SkeletonPage />
+        </div>
+      </div>
+    );
+  }
 
   /* ================================================================ */
   /*  JSX                                                             */
@@ -279,19 +352,24 @@ const ImportData: React.FC = () => {
         {/*  Page header                                              */}
         {/* -------------------------------------------------------- */}
         <div>
-          <h1 className="text-2xl font-bold text-[#1e2a4a]">Import Data</h1>
-          <p className="text-gray-500 mt-1">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center">
+              <ArrowDownToLine className="w-5 h-5 text-brand-500" />
+            </div>
+            <h1 className="text-2xl font-bold text-navy-500">Import Data</h1>
+          </div>
+          <p className="text-gray-500 mt-1 ml-12">
             Upload CSV or Excel files to import KOL records into the platform.
           </p>
         </div>
 
         {/* ======================================================== */}
-        {/*  SECTION 1 – Upload New                                   */}
+        {/*  SECTION 1 -- Upload New                                  */}
         {/* ======================================================== */}
-        <section className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-[#1e2a4a] mb-4 flex items-center gap-2">
-            <Upload className="w-5 h-5" />
-            Upload New
+        <section className="bg-white rounded-lg shadow-card p-6">
+          <h2 className="text-lg font-semibold text-navy-500 mb-5 flex items-center gap-2">
+            <Upload className="w-5 h-5 text-brand-500" />
+            Upload New File
           </h2>
 
           {/* Drag-and-drop zone */}
@@ -304,12 +382,12 @@ const ImportData: React.FC = () => {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
             className={`
-              border-2 border-dashed rounded-lg p-10 text-center cursor-pointer
-              transition-colors duration-200
+              relative border-2 border-dashed rounded-xl py-16 px-8 text-center cursor-pointer
+              transition-all duration-300 ease-in-out
               ${
                 dragOver
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
+                  ? 'border-brand-500 bg-brand-50 scale-[1.01]'
+                  : 'border-gray-300 hover:border-brand-500 hover:bg-gray-50'
               }
             `}
           >
@@ -320,48 +398,70 @@ const ImportData: React.FC = () => {
               className="hidden"
               onChange={handleFileChange}
             />
-            <Upload
-              className={`w-10 h-10 mx-auto mb-3 ${
-                dragOver ? 'text-blue-500' : 'text-gray-400'
-              }`}
-            />
+
             {file ? (
-              <div className="flex items-center justify-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                <span className="text-sm font-medium text-[#1e2a4a]">
-                  {file.name}
-                </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setFile(null);
-                    if (fileInputRef.current) fileInputRef.current.value = '';
-                  }}
-                  className="ml-2 text-gray-400 hover:text-red-500"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center">
+                  <FileText className="w-7 h-7 text-brand-500" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-base font-semibold text-navy-500">
+                    {file.name}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    ({(file.size / 1024).toFixed(1)} KB)
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFile(null);
+                      if (fileInputRef.current) fileInputRef.current.value = '';
+                    }}
+                    className="ml-2 p-1 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-sm text-gray-400">
+                  Click or drop another file to replace
+                </p>
               </div>
             ) : (
-              <>
-                <p className="text-sm text-gray-600 font-medium">
-                  Drag &amp; drop a CSV or Excel file here, or click to browse
+              <div className="flex flex-col items-center gap-3">
+                <div
+                  className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-colors duration-300 ${
+                    dragOver ? 'bg-brand-100' : 'bg-gray-100'
+                  }`}
+                >
+                  <Upload
+                    className={`w-8 h-8 transition-colors duration-300 ${
+                      dragOver ? 'text-brand-500' : 'text-gray-400'
+                    }`}
+                  />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-navy-500">
+                    Drag &amp; drop your file here
+                  </p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    CSV or Excel (.csv, .xlsx, .xls)
+                  </p>
+                </div>
+                <p className="text-sm text-brand-500 font-medium hover:text-brand-600 transition-colors">
+                  or click to browse
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Supported formats: .csv, .xlsx, .xls
-                </p>
-              </>
+              </div>
             )}
           </div>
 
           {/* Form fields */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
             {/* Team selector */}
             <div>
               <label
                 htmlFor="team"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-1.5"
               >
                 Team
               </label>
@@ -369,8 +469,9 @@ const ImportData: React.FC = () => {
                 id="team"
                 value={team}
                 onChange={(e) => setTeam(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm bg-white
+                           focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500
+                           transition-shadow"
               >
                 {TEAMS.map((t) => (
                   <option key={t} value={t}>
@@ -384,7 +485,7 @@ const ImportData: React.FC = () => {
             <div>
               <label
                 htmlFor="uploadedBy"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-1.5"
               >
                 Uploaded By
               </label>
@@ -394,8 +495,9 @@ const ImportData: React.FC = () => {
                 placeholder="Your name"
                 value={uploadedBy}
                 onChange={(e) => setUploadedBy(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm
+                           focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500
+                           transition-shadow placeholder:text-gray-400"
               />
             </div>
 
@@ -403,7 +505,7 @@ const ImportData: React.FC = () => {
             <div>
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-gray-700 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-1.5"
               >
                 Description
               </label>
@@ -413,25 +515,26 @@ const ImportData: React.FC = () => {
                 placeholder="Optional notes about this import"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm resize-y
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm resize-y
+                           focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500
+                           transition-shadow placeholder:text-gray-400"
               />
             </div>
           </div>
 
           {/* Upload button */}
-          <div className="mt-5 flex items-center gap-4">
+          <div className="mt-6 flex items-center gap-4">
             <button
               type="button"
               onClick={handleUpload}
               disabled={!file || uploading}
               className={`
-                inline-flex items-center gap-2 px-5 py-2.5 rounded-md text-sm font-medium
-                transition-colors duration-200
+                inline-flex items-center gap-2 px-6 py-2.5 rounded-lg text-sm font-semibold
+                transition-all duration-200 shadow-sm
                 ${
                   !file || uploading
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                    : 'bg-brand-500 text-white hover:bg-brand-600 hover:shadow-md active:scale-[0.98]'
                 }
               `}
             >
@@ -456,150 +559,176 @@ const ImportData: React.FC = () => {
                       d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                     />
                   </svg>
-                  Uploading…
+                  Uploading...
                 </>
               ) : (
                 <>
                   <Upload className="w-4 h-4" />
-                  Upload
+                  Upload File
                 </>
               )}
             </button>
 
             {uploadError && (
-              <p className="text-sm text-red-600 flex items-center gap-1">
-                <AlertTriangle className="w-4 h-4" />
+              <motion.p
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="text-sm text-red-600 flex items-center gap-1.5"
+              >
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                 {uploadError}
-              </p>
+              </motion.p>
             )}
           </div>
 
           {/* Upload result card */}
-          {uploadResult && (
-            <div className="mt-6 bg-gray-50 border border-gray-200 rounded-lg p-5">
-              <h3 className="text-sm font-semibold text-[#1e2a4a] mb-4 flex items-center gap-2">
-                <Check className="w-4 h-4 text-green-600" />
-                Import Complete
-              </h3>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
-                <StatBadge
-                  label="New"
-                  value={uploadResult.new_records}
-                  color="text-green-600"
-                />
-                <StatBadge
-                  label="Updated"
-                  value={uploadResult.updated_records}
-                  color="text-blue-600"
-                />
-                <StatBadge
-                  label="Duplicates"
-                  value={uploadResult.duplicate_records}
-                  color="text-amber-500"
-                />
-                <StatBadge
-                  label="Errors"
-                  value={uploadResult.error_records}
-                  color="text-red-600"
-                />
-              </div>
-            </div>
-          )}
+          <AnimatePresence>
+            {uploadResult && (
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+                className="mt-6 bg-gradient-to-br from-green-50 to-brand-50 border border-green-200 rounded-xl p-6"
+              >
+                <h3 className="text-sm font-semibold text-navy-500 mb-4 flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  Import Complete
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  <ResultStat
+                    label="New Records"
+                    value={uploadResult.new_records}
+                    icon={<CheckCircle2 className="w-5 h-5" />}
+                    color="text-green-600"
+                    bgColor="bg-white/70"
+                  />
+                  <ResultStat
+                    label="Updated"
+                    value={uploadResult.updated_records}
+                    icon={<RefreshCw className="w-5 h-5" />}
+                    color="text-blue-600"
+                    bgColor="bg-white/70"
+                  />
+                  <ResultStat
+                    label="Duplicates"
+                    value={uploadResult.duplicate_records}
+                    icon={<Copy className="w-5 h-5" />}
+                    color="text-amber-600"
+                    bgColor="bg-white/70"
+                  />
+                  <ResultStat
+                    label="Errors"
+                    value={uploadResult.error_records}
+                    icon={<XCircle className="w-5 h-5" />}
+                    color="text-red-600"
+                    bgColor="bg-white/70"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </section>
 
         {/* ======================================================== */}
-        {/*  SECTION 2 – Import History                               */}
+        {/*  SECTION 2 -- Import History                              */}
         {/* ======================================================== */}
-        <section className="bg-white rounded-lg shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-[#1e2a4a] mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5" />
+        <section className="bg-white rounded-lg shadow-card p-6">
+          <h2 className="text-lg font-semibold text-navy-500 mb-5 flex items-center gap-2">
+            <History className="w-5 h-5 text-brand-500" />
             Import History
           </h2>
 
           {batchesLoading ? (
-            <div className="text-center py-10 text-gray-400 text-sm">
-              Loading batches…
+            <div className="py-10">
+              <SkeletonPage />
             </div>
           ) : batches.length === 0 ? (
-            <div className="text-center py-10 text-gray-400 text-sm">
-              No imports yet. Upload a file above to get started.
-            </div>
+            <EmptyState
+              icon={Upload}
+              title="No imports yet"
+              description="Upload your first KOL list to get started"
+            />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-200 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                    <th className="py-3 pr-4" />
-                    <th className="py-3 pr-4">Filename</th>
-                    <th className="py-3 pr-4">Team</th>
-                    <th className="py-3 pr-4">Uploaded By</th>
-                    <th className="py-3 pr-4">Date</th>
-                    <th className="py-3 pr-4 text-center">New</th>
-                    <th className="py-3 pr-4 text-center">Updated</th>
-                    <th className="py-3 pr-4 text-center">Dup</th>
-                    <th className="py-3 pr-4 text-center">Err</th>
-                    <th className="py-3 pr-4 text-center">Conflicts</th>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="py-3 pl-4 pr-2 w-8" />
+                    <th className="py-3 px-4">Filename</th>
+                    <th className="py-3 px-4">Team</th>
+                    <th className="py-3 px-4">Uploaded By</th>
+                    <th className="py-3 px-4">Date</th>
+                    <th className="py-3 px-4 text-center">New</th>
+                    <th className="py-3 px-4 text-center">Updated</th>
+                    <th className="py-3 px-4 text-center">Dup</th>
+                    <th className="py-3 px-4 text-center">Err</th>
+                    <th className="py-3 px-4 text-center">Status</th>
                   </tr>
                 </thead>
-                <tbody>
-                  {batches.map((batch) => {
+                <tbody className="divide-y divide-gray-100">
+                  {batches.map((batch, index) => {
                     const isSelected = selectedBatchId === batch.id;
+                    const isEven = index % 2 === 0;
                     return (
                       <React.Fragment key={batch.id}>
                         <tr
                           onClick={() => handleBatchClick(batch.id)}
                           className={`
-                            border-b border-gray-100 cursor-pointer transition-colors
+                            cursor-pointer transition-colors duration-150
                             ${
                               isSelected
-                                ? 'bg-blue-50'
-                                : 'hover:bg-gray-50'
+                                ? 'bg-brand-50'
+                                : isEven
+                                  ? 'bg-white hover:bg-gray-50'
+                                  : 'bg-gray-50/50 hover:bg-gray-100/60'
                             }
                           `}
                         >
-                          <td className="py-3 pr-2">
+                          <td className="py-3.5 pl-4 pr-2">
                             <ChevronRight
                               className={`w-4 h-4 text-gray-400 transition-transform duration-200 ${
-                                isSelected ? 'rotate-90' : ''
+                                isSelected ? 'rotate-90 text-brand-500' : ''
                               }`}
                             />
                           </td>
-                          <td className="py-3 pr-4 font-medium text-[#1e2a4a] whitespace-nowrap">
+                          <td className="py-3.5 px-4 font-medium text-navy-500 whitespace-nowrap">
                             <div className="flex items-center gap-2">
                               <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" />
                               {batch.filename}
                             </div>
                           </td>
-                          <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">
+                          <td className="py-3.5 px-4 text-gray-600 whitespace-nowrap">
                             {batch.team}
                           </td>
-                          <td className="py-3 pr-4 text-gray-600 whitespace-nowrap">
+                          <td className="py-3.5 px-4 text-gray-600 whitespace-nowrap">
                             {batch.uploaded_by}
                           </td>
-                          <td className="py-3 pr-4 text-gray-500 whitespace-nowrap">
+                          <td className="py-3.5 px-4 text-gray-500 whitespace-nowrap">
                             {formatDate(batch.created_at)}
                           </td>
-                          <td className="py-3 pr-4 text-center text-green-600 font-medium">
-                            {batch.new_records}
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="font-semibold text-green-600">
+                              {batch.new_records}
+                            </span>
                           </td>
-                          <td className="py-3 pr-4 text-center text-blue-600 font-medium">
-                            {batch.updated_records}
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="font-semibold text-blue-600">
+                              {batch.updated_records}
+                            </span>
                           </td>
-                          <td className="py-3 pr-4 text-center text-amber-500 font-medium">
-                            {batch.duplicate_records}
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="font-semibold text-amber-500">
+                              {batch.duplicate_records}
+                            </span>
                           </td>
-                          <td className="py-3 pr-4 text-center text-red-600 font-medium">
-                            {batch.error_records}
+                          <td className="py-3.5 px-4 text-center">
+                            <span className="font-semibold text-red-600">
+                              {batch.error_records}
+                            </span>
                           </td>
-                          <td className="py-3 pr-4 text-center">
-                            {(batch.pending_conflicts ?? 0) > 0 ? (
-                              <span className="inline-flex items-center gap-1 text-amber-600 font-medium">
-                                <AlertTriangle className="w-3.5 h-3.5" />
-                                {batch.pending_conflicts}
-                              </span>
-                            ) : (
-                              <span className="text-gray-400">0</span>
-                            )}
+                          <td className="py-3.5 px-4 text-center">
+                            <BatchStatusBadge batch={batch} />
                           </td>
                         </tr>
 
@@ -607,33 +736,63 @@ const ImportData: React.FC = () => {
                         {isSelected && (
                           <tr>
                             <td colSpan={10} className="p-0">
-                              <div className="bg-gray-50 border-t border-gray-200 p-5">
-                                {conflictsLoading ? (
-                                  <p className="text-center text-gray-400 text-sm py-4">
-                                    Loading conflicts…
-                                  </p>
-                                ) : conflicts.length === 0 ? (
-                                  <p className="text-center text-gray-400 text-sm py-4 flex items-center justify-center gap-2">
-                                    <Check className="w-4 h-4 text-green-500" />
-                                    No unresolved conflicts for this batch.
-                                  </p>
-                                ) : (
-                                  /* Render conflict resolution section inline */
-                                  <ConflictResolutionSection
-                                    conflicts={conflicts}
-                                    selectedConflictIds={selectedConflictIds}
-                                    bulkResolving={bulkResolving}
-                                    manualInputId={manualInputId}
-                                    manualValue={manualValue}
-                                    onToggleSelectAll={toggleSelectAll}
-                                    onToggleConflictSelect={toggleConflictSelect}
-                                    onBulkResolve={handleBulkResolve}
-                                    onResolve={handleResolve}
-                                    onSetManualInputId={setManualInputId}
-                                    onSetManualValue={setManualValue}
-                                  />
-                                )}
-                              </div>
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                transition={{ duration: 0.3 }}
+                                className="bg-gray-50 border-t border-gray-200"
+                              >
+                                <div className="p-6">
+                                  {conflictsLoading ? (
+                                    <div className="flex items-center justify-center gap-3 py-8">
+                                      <svg
+                                        className="animate-spin h-5 w-5 text-brand-500"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                      >
+                                        <circle
+                                          className="opacity-25"
+                                          cx="12"
+                                          cy="12"
+                                          r="10"
+                                          stroke="currentColor"
+                                          strokeWidth="4"
+                                        />
+                                        <path
+                                          className="opacity-75"
+                                          fill="currentColor"
+                                          d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                                        />
+                                      </svg>
+                                      <span className="text-sm text-gray-500">
+                                        Loading conflicts...
+                                      </span>
+                                    </div>
+                                  ) : conflicts.length === 0 ? (
+                                    <div className="flex items-center justify-center gap-2 py-8">
+                                      <CheckCircle2 className="w-5 h-5 text-green-500" />
+                                      <span className="text-sm text-gray-500 font-medium">
+                                        No unresolved conflicts for this batch.
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <ConflictResolutionSection
+                                      conflicts={conflicts}
+                                      selectedConflictIds={selectedConflictIds}
+                                      bulkResolving={bulkResolving}
+                                      manualInputId={manualInputId}
+                                      manualValue={manualValue}
+                                      onToggleSelectAll={toggleSelectAll}
+                                      onToggleConflictSelect={toggleConflictSelect}
+                                      onBulkResolve={handleBulkResolve}
+                                      onResolve={handleResolve}
+                                      onSetManualInputId={setManualInputId}
+                                      onSetManualValue={setManualValue}
+                                    />
+                                  )}
+                                </div>
+                              </motion.div>
                             </td>
                           </tr>
                         )}
@@ -690,43 +849,43 @@ const ConflictResolutionSection: React.FC<ConflictResolutionSectionProps> = ({
   return (
     <div className="space-y-4">
       {/* Bulk actions toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-lg border border-gray-200 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-lg border border-gray-200 px-5 py-3.5 shadow-sm">
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <label className="flex items-center gap-2.5 text-sm cursor-pointer select-none">
             <input
               type="checkbox"
               checked={allSelected}
               onChange={onToggleSelectAll}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="w-4 h-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500/20"
             />
-            <span className="text-gray-700 font-medium">
+            <span className="text-gray-700 font-semibold">
               Select All ({conflicts.length})
             </span>
           </label>
           {selectedConflictIds.size > 0 && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
               {selectedConflictIds.size} selected
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 mr-1">Bulk resolve:</span>
+          <span className="text-xs text-gray-500 mr-1 font-medium">Bulk resolve:</span>
           <button
             type="button"
             disabled={selectedConflictIds.size === 0 || bulkResolving}
             onClick={() => onBulkResolve('keep_existing')}
             className={`
-              inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium
-              transition-colors duration-150
+              inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold
+              transition-all duration-150 shadow-sm
               ${
                 selectedConflictIds.size === 0 || bulkResolving
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100 ring-1 ring-inset ring-blue-200'
               }
             `}
           >
-            <Check className="w-3.5 h-3.5" />
+            <Shield className="w-3.5 h-3.5" />
             Keep Existing
           </button>
           <button
@@ -734,16 +893,16 @@ const ConflictResolutionSection: React.FC<ConflictResolutionSectionProps> = ({
             disabled={selectedConflictIds.size === 0 || bulkResolving}
             onClick={() => onBulkResolve('use_incoming')}
             className={`
-              inline-flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium
-              transition-colors duration-150
+              inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold
+              transition-all duration-150 shadow-sm
               ${
                 selectedConflictIds.size === 0 || bulkResolving
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100 ring-1 ring-inset ring-amber-200'
               }
             `}
           >
-            <Check className="w-3.5 h-3.5" />
+            <ArrowDownToLine className="w-3.5 h-3.5" />
             Use Incoming
           </button>
         </div>
@@ -751,94 +910,130 @@ const ConflictResolutionSection: React.FC<ConflictResolutionSectionProps> = ({
 
       {/* Conflict cards */}
       <div className="space-y-3">
-        {conflicts.map((conflict) => (
-          <div
+        {conflicts.map((conflict, index) => (
+          <motion.div
             key={conflict.id}
-            className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-sm transition-shadow"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25, delay: index * 0.05 }}
+            className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-card-hover transition-shadow duration-200"
           >
             {/* Card header */}
-            <div className="flex items-start gap-3 mb-4">
+            <div className="flex items-start gap-3 mb-5">
               <input
                 type="checkbox"
                 checked={selectedConflictIds.has(conflict.id)}
                 onChange={() => onToggleConflictSelect(conflict.id)}
-                className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="mt-1 w-4 h-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500/20"
               />
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2.5 flex-wrap">
                   <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
-                  <span className="font-semibold text-[#1e2a4a] text-sm">
+                  <span className="font-semibold text-navy-500 text-sm">
                     {conflict.physician_name}
                   </span>
-                  <span className="inline-block bg-gray-100 text-gray-600 text-xs font-mono px-2 py-0.5 rounded">
+                  {conflict.physician_institution && (
+                    <span className="text-xs text-gray-400">
+                      at {conflict.physician_institution}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center bg-gray-100 text-gray-600 text-xs font-mono px-2.5 py-0.5 rounded-md ring-1 ring-inset ring-gray-200">
                     {conflict.field_name}
                   </span>
                 </div>
                 {conflict.created_at && (
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className="text-xs text-gray-400 mt-1.5">
                     Detected {formatDateTime(conflict.created_at)}
                   </p>
                 )}
               </div>
             </div>
 
-            {/* Value comparison */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            {/* Visual diff -- side by side */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
               {/* Existing value */}
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
-                <p className="text-xs font-semibold text-blue-600 uppercase tracking-wide mb-1">
-                  Existing Value
-                </p>
-                <p className="text-sm text-[#1e2a4a] font-medium break-words">
-                  {conflict.existing_value || (
-                    <span className="italic text-gray-400">(empty)</span>
-                  )}
-                </p>
+              <div className="relative rounded-lg border border-blue-200 overflow-hidden">
+                <div className="bg-blue-50 px-4 py-2 border-b border-blue-200">
+                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide flex items-center gap-1.5">
+                    <Shield className="w-3.5 h-3.5" />
+                    Existing
+                  </p>
+                </div>
+                <div className="px-4 py-3 bg-white">
+                  <p className="text-sm text-navy-500 font-medium break-words">
+                    {conflict.existing_value || (
+                      <span className="italic text-gray-400">(empty)</span>
+                    )}
+                  </p>
+                </div>
               </div>
 
+              {/* Arrow between values (visible on larger screens) */}
+              <div className="hidden sm:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+
               {/* Incoming value */}
-              <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
-                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-1">
-                  Incoming Value
-                </p>
-                <p className="text-sm text-[#1e2a4a] font-medium break-words">
-                  {conflict.incoming_value || (
-                    <span className="italic text-gray-400">(empty)</span>
+              <div className="relative rounded-lg border border-amber-200 overflow-hidden">
+                <div className="bg-amber-50 px-4 py-2 border-b border-amber-200">
+                  <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+                    <ArrowDownToLine className="w-3.5 h-3.5" />
+                    Incoming
+                  </p>
+                </div>
+                <div className="px-4 py-3">
+                  {conflict.existing_value !== conflict.incoming_value ? (
+                    <p className="text-sm font-medium break-words bg-amber-50 text-amber-700 px-2 py-1 rounded -mx-2 -my-1">
+                      {conflict.incoming_value || (
+                        <span className="italic text-gray-400">(empty)</span>
+                      )}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-navy-500 font-medium break-words">
+                      {conflict.incoming_value || (
+                        <span className="italic text-gray-400">(empty)</span>
+                      )}
+                    </p>
                   )}
-                </p>
+                </div>
               </div>
             </div>
 
             {/* Resolution buttons */}
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-100">
               <button
                 type="button"
                 onClick={() => onResolve(conflict.id, 'keep_existing')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium
-                           bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold
+                           bg-blue-600 text-white hover:bg-blue-700 transition-all duration-150 shadow-sm
+                           hover:shadow-md active:scale-[0.98]"
               >
-                <Check className="w-3.5 h-3.5" />
+                <Shield className="w-3.5 h-3.5" />
                 Keep Existing
               </button>
               <button
                 type="button"
                 onClick={() => onResolve(conflict.id, 'use_incoming')}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium
-                           bg-amber-500 text-white hover:bg-amber-600 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold
+                           bg-amber-500 text-white hover:bg-amber-600 transition-all duration-150 shadow-sm
+                           hover:shadow-md active:scale-[0.98]"
               >
-                <Check className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5" />
                 Use Incoming
               </button>
 
               {manualInputId === conflict.id ? (
-                <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: 'auto' }}
+                  className="flex items-center gap-2 flex-1 min-w-[200px]"
+                >
                   <input
                     type="text"
                     value={manualValue}
                     onChange={(e) => onSetManualValue(e.target.value)}
-                    placeholder="Enter manual value…"
-                    className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-xs
-                               focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter manual value..."
+                    className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-xs
+                               focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500
+                               transition-shadow placeholder:text-gray-400"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && manualValue.trim()) {
@@ -859,11 +1054,11 @@ const ConflictResolutionSection: React.FC<ConflictResolutionSectionProps> = ({
                     }}
                     disabled={!manualValue.trim()}
                     className={`
-                      p-1.5 rounded-md transition-colors
+                      p-2 rounded-lg transition-all duration-150
                       ${
                         manualValue.trim()
-                          ? 'bg-green-600 text-white hover:bg-green-700'
-                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          ? 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
+                          : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       }
                     `}
                   >
@@ -875,11 +1070,11 @@ const ConflictResolutionSection: React.FC<ConflictResolutionSectionProps> = ({
                       onSetManualInputId(null);
                       onSetManualValue('');
                     }}
-                    className="p-1.5 rounded-md bg-gray-200 text-gray-500 hover:bg-gray-300 transition-colors"
+                    className="p-2 rounded-lg bg-gray-100 text-gray-500 hover:bg-gray-200 transition-colors"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
-                </div>
+                </motion.div>
               ) : (
                 <button
                   type="button"
@@ -887,14 +1082,16 @@ const ConflictResolutionSection: React.FC<ConflictResolutionSectionProps> = ({
                     onSetManualInputId(conflict.id);
                     onSetManualValue('');
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium
-                             bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-300 transition-colors"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold
+                             bg-white text-gray-700 hover:bg-gray-50 ring-1 ring-inset ring-gray-200
+                             transition-all duration-150 hover:ring-gray-300"
                 >
+                  <Pencil className="w-3.5 h-3.5" />
                   Enter Manual
                 </button>
               )}
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
     </div>

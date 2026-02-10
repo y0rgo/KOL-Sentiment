@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -14,7 +14,11 @@ import {
   Loader2,
   Users,
   ExternalLink,
+  CheckCircle,
+  TrendingUp,
+  Award,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { fetchPhysicians, fetchPhysician, updatePhysician, transitionStatus } from '../api/client';
 import type { Physician, PhysicianListResponse } from '../types';
 import {
@@ -25,6 +29,10 @@ import {
   SOURCE_LABELS,
 } from '../utils/statusUtils';
 import { formatDate } from '../utils/formatters';
+import { StatusBadge, TierBadge } from '../components/ui/StatusBadge';
+import { SkeletonPage } from '../components/ui/Skeleton';
+import { EmptyState } from '../components/ui/EmptyState';
+import type { LucideIcon } from 'lucide-react';
 
 /* -------------------------------------------------------------------------- */
 /*  Constants                                                                 */
@@ -51,18 +59,56 @@ const SOURCE_CHANNELS = Object.keys(SOURCE_LABELS);
 /*  Helpers                                                                   */
 /* -------------------------------------------------------------------------- */
 
-function completenessColor(score: number): string {
-  if (score < 25) return 'bg-red-500';
-  if (score < 50) return 'bg-orange-500';
-  if (score < 75) return 'bg-yellow-500';
-  return 'bg-green-500';
+function completenessBarColor(score: number): string {
+  if (score < 40) return '#EF4444';
+  if (score <= 70) return '#F59E0B';
+  return '#22C55E';
 }
 
 function completenessTrackColor(score: number): string {
-  if (score < 25) return 'bg-red-100';
-  if (score < 50) return 'bg-orange-100';
-  if (score < 75) return 'bg-yellow-100';
+  if (score < 40) return 'bg-red-100';
+  if (score <= 70) return 'bg-amber-100';
   return 'bg-green-100';
+}
+
+function completenessColor(score: number): string {
+  if (score < 40) return 'bg-red-500';
+  if (score <= 70) return 'bg-amber-500';
+  return 'bg-green-500';
+}
+
+/* -------------------------------------------------------------------------- */
+/*  StatCard                                                                  */
+/* -------------------------------------------------------------------------- */
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  iconBg,
+  iconColor,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string | number;
+  iconBg: string;
+  iconColor: string;
+}) {
+  return (
+    <div className="bg-white rounded-lg shadow-card p-4 flex items-center gap-4">
+      <div className={`flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center ${iconBg}`}>
+        <Icon className={`w-5 h-5 ${iconColor}`} />
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide truncate">
+          {label}
+        </p>
+        <p className="text-xl font-bold text-gray-900 leading-tight mt-0.5">
+          {value}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 /* -------------------------------------------------------------------------- */
@@ -113,8 +159,9 @@ function PhysicianDrawer({ physicianId, onClose, onUpdated }: DrawerProps) {
       setEditingField(null);
       setEditValue('');
       onUpdated();
+      toast.success('Field updated successfully');
     } catch {
-      // silently fail — could add toast
+      toast.error('Failed to update field');
     } finally {
       setSaving(false);
     }
@@ -131,8 +178,9 @@ function PhysicianDrawer({ physicianId, onClose, onUpdated }: DrawerProps) {
       const res = await fetchPhysician(physician.id);
       setPhysician(res.data);
       onUpdated();
+      toast.success(`Status changed to ${STATUS_LABELS[newStatus] ?? newStatus}`);
     } catch {
-      // silently fail
+      toast.error('Failed to change status');
     } finally {
       setTransitioning(false);
     }
@@ -161,7 +209,7 @@ function PhysicianDrawer({ physicianId, onClose, onUpdated }: DrawerProps) {
             <div className="flex items-center gap-2 mt-1">
               <input
                 type="text"
-                className="flex-1 px-2 py-1 text-sm border border-teal-300 rounded focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                className="flex-1 px-2 py-1 text-sm border border-brand-300 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none"
                 value={editValue}
                 onChange={(e) => setEditValue(e.target.value)}
                 onKeyDown={(e) => {
@@ -173,7 +221,7 @@ function PhysicianDrawer({ physicianId, onClose, onUpdated }: DrawerProps) {
               <button
                 onClick={saveEdit}
                 disabled={saving}
-                className="p-1 text-teal-600 hover:text-teal-800 disabled:opacity-50"
+                className="p-1 text-brand-600 hover:text-brand-800 disabled:opacity-50"
                 title="Save"
               >
                 <Save className="w-4 h-4" />
@@ -221,26 +269,19 @@ function PhysicianDrawer({ physicianId, onClose, onUpdated }: DrawerProps) {
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-navy-500">
-          <h2 className="text-lg font-semibold text-white truncate">
-            {physician
-              ? `${physician.first_name} ${physician.last_name}`
-              : 'Physician Details'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-1 rounded hover:bg-navy-400 text-white/80 hover:text-white transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+        {/* Close button (floating) */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-10 p-1.5 rounded-lg bg-white/80 backdrop-blur-sm hover:bg-white text-gray-500 hover:text-gray-700 transition-colors shadow-sm"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
         {/* Body */}
-        <div className="overflow-y-auto h-[calc(100%-64px)]">
+        <div className="overflow-y-auto h-full">
           {loading && (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
             </div>
           )}
 
@@ -252,33 +293,28 @@ function PhysicianDrawer({ physicianId, onClose, onUpdated }: DrawerProps) {
 
           {!loading && physician && (
             <div className="divide-y divide-gray-100">
-              {/* Status + Completeness header card */}
-              <div className="px-6 py-5 bg-gray-50">
-                {/* Status badge */}
-                <div className="flex items-center gap-3 mb-4">
-                  <span
-                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${
-                      STATUS_COLORS[physician.record_status]?.bg ?? 'bg-gray-100'
-                    } ${
-                      STATUS_COLORS[physician.record_status]?.text ?? 'text-gray-800'
-                    }`}
-                  >
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        STATUS_COLORS[physician.record_status]?.dot ?? 'bg-gray-500'
-                      }`}
-                    />
-                    {STATUS_LABELS[physician.record_status] ?? physician.record_status}
-                  </span>
-                  {physician.tier && (
-                    <span className="px-2 py-0.5 rounded text-xs font-semibold bg-navy-100 text-navy-600">
-                      Tier {physician.tier}
-                    </span>
-                  )}
+              {/* Hero header with gradient background */}
+              <div className="px-6 pt-6 pb-5 bg-gradient-to-r from-navy-500/5 to-brand-500/5">
+                <h2 className="text-xl font-bold text-navy-600 leading-tight">
+                  {physician.first_name} {physician.last_name}
+                </h2>
+                {physician.credentials && (
+                  <p className="text-sm text-gray-500 mt-0.5">{physician.credentials}</p>
+                )}
+                {physician.institution_name && (
+                  <p className="text-sm text-gray-600 mt-1 font-medium">
+                    {physician.institution_name}
+                  </p>
+                )}
+
+                {/* Status + Tier */}
+                <div className="flex items-center gap-3 mt-4">
+                  <StatusBadge status={physician.record_status} size="sm" />
+                  {physician.tier && <TierBadge tier={physician.tier} />}
                 </div>
 
                 {/* Completeness bar */}
-                <div className="mb-4">
+                <div className="mt-4">
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-gray-600">
                       Completeness
@@ -305,13 +341,13 @@ function PhysicianDrawer({ physicianId, onClose, onUpdated }: DrawerProps) {
 
                 {/* Transition buttons */}
                 {VALID_TRANSITIONS[physician.record_status]?.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 mt-4">
                     {VALID_TRANSITIONS[physician.record_status].map((target) => (
                       <button
                         key={target}
                         disabled={transitioning}
                         onClick={() => handleTransition(target)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors disabled:opacity-50 ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors disabled:opacity-50 ${
                           target === 'validated'
                             ? 'bg-green-50 border-green-300 text-green-700 hover:bg-green-100'
                             : target === 'declined'
@@ -336,7 +372,7 @@ function PhysicianDrawer({ physicianId, onClose, onUpdated }: DrawerProps) {
                 {physician.record_status === 'validated' && (
                   <button
                     onClick={() => navigate(`/persona/${physician.id}`)}
-                    className="mt-3 inline-flex items-center gap-1.5 text-sm text-teal-600 hover:text-teal-800 font-medium"
+                    className="mt-3 inline-flex items-center gap-1.5 text-sm text-brand-600 hover:text-brand-800 font-medium"
                   >
                     <ExternalLink className="w-4 h-4" />
                     View Full Persona
@@ -566,6 +602,27 @@ export default function MasterList() {
     loadData();
   }, [loadData]);
 
+  /* ---------- computed hero stats ---------- */
+  const heroStats = useMemo(() => {
+    const physicians = data?.items ?? [];
+    const totalCount = data?.total ?? 0;
+    const validatedCount = physicians.filter((p) => p.record_status === 'validated').length;
+    const avgCompleteness =
+      physicians.length > 0
+        ? Math.round(
+            physicians.reduce((sum, p) => sum + p.completeness_score, 0) / physicians.length
+          )
+        : 0;
+    const physWithTier = physicians.filter((p) => p.tier_score !== null && p.tier_score !== undefined);
+    const avgTierScore =
+      physWithTier.length > 0
+        ? (
+            physWithTier.reduce((sum, p) => sum + (p.tier_score ?? 0), 0) / physWithTier.length
+          ).toFixed(1)
+        : '--';
+    return { totalCount, validatedCount, avgCompleteness, avgTierScore };
+  }, [data]);
+
   /* ---------- handlers ---------- */
   const toggleStatus = (status: string) => {
     setSelectedStatuses((prev) =>
@@ -598,20 +655,57 @@ export default function MasterList() {
   const physicians = data?.items ?? [];
 
   /* ---------- render ---------- */
+
+  if (loading && !data) {
+    return <SkeletonPage />;
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* ---- Page header ---- */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-navy-500">Master KOL List</h1>
+          <h1 className="text-2xl font-bold text-navy-600">Master KOL List</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            {totalCount.toLocaleString()} physician{totalCount !== 1 ? 's' : ''} total
+            {totalCount.toLocaleString()} physician{totalCount !== 1 ? 's' : ''} in database
           </p>
         </div>
       </div>
 
+      {/* ---- Hero stat cards ---- */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon={Users}
+          label="Total Physicians"
+          value={heroStats.totalCount.toLocaleString()}
+          iconBg="bg-blue-100"
+          iconColor="text-blue-600"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Validated"
+          value={heroStats.validatedCount.toLocaleString()}
+          iconBg="bg-emerald-100"
+          iconColor="text-emerald-600"
+        />
+        <StatCard
+          icon={TrendingUp}
+          label="Avg Completeness"
+          value={`${heroStats.avgCompleteness}%`}
+          iconBg="bg-amber-100"
+          iconColor="text-amber-600"
+        />
+        <StatCard
+          icon={Award}
+          label="Avg Tier Score"
+          value={heroStats.avgTierScore}
+          iconBg="bg-purple-100"
+          iconColor="text-purple-600"
+        />
+      </div>
+
       {/* ---- Filter bar ---- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 space-y-3">
+      <div className="bg-white rounded-lg shadow-card p-4 space-y-3">
         {/* Row 1: search + dropdowns */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Search */}
@@ -622,7 +716,7 @@ export default function MasterList() {
               placeholder="Search by name or NPI..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:outline-none transition-colors"
+              className="w-full pl-10 pr-8 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 focus:outline-none transition-colors"
             />
             {search && (
               <button
@@ -640,8 +734,8 @@ export default function MasterList() {
               onClick={() => setShowSourceDropdown(!showSourceDropdown)}
               className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors ${
                 sourceChannel
-                  ? 'border-teal-300 bg-teal-50 text-teal-700'
-                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'border-brand-300 bg-brand-50 text-brand-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
               {sourceChannel
@@ -658,7 +752,7 @@ export default function MasterList() {
                     setPage(1);
                   }}
                   className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                    !sourceChannel ? 'font-medium text-teal-600' : 'text-gray-700'
+                    !sourceChannel ? 'font-medium text-brand-600' : 'text-gray-700'
                   }`}
                 >
                   All Sources
@@ -673,7 +767,7 @@ export default function MasterList() {
                     }}
                     className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
                       sourceChannel === ch
-                        ? 'font-medium text-teal-600'
+                        ? 'font-medium text-brand-600'
                         : 'text-gray-700'
                     }`}
                   >
@@ -690,8 +784,8 @@ export default function MasterList() {
               onClick={() => setShowStateDropdown(!showStateDropdown)}
               className={`inline-flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg transition-colors ${
                 stateFilter
-                  ? 'border-teal-300 bg-teal-50 text-teal-700'
-                  : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                  ? 'border-brand-300 bg-brand-50 text-brand-700'
+                  : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
               }`}
             >
               {stateFilter || 'State'}
@@ -706,7 +800,7 @@ export default function MasterList() {
                     setPage(1);
                   }}
                   className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                    !stateFilter ? 'font-medium text-teal-600' : 'text-gray-700'
+                    !stateFilter ? 'font-medium text-brand-600' : 'text-gray-700'
                   }`}
                 >
                   All States
@@ -721,7 +815,7 @@ export default function MasterList() {
                     }}
                     className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
                       stateFilter === st
-                        ? 'font-medium text-teal-600'
+                        ? 'font-medium text-brand-600'
                         : 'text-gray-700'
                     }`}
                   >
@@ -736,7 +830,7 @@ export default function MasterList() {
           <div className="relative" ref={sortRef}>
             <button
               onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <ArrowUpDown className="w-4 h-4" />
               {SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Sort'}
@@ -753,7 +847,7 @@ export default function MasterList() {
                     }}
                     className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
                       sortBy === opt.value
-                        ? 'font-medium text-teal-600'
+                        ? 'font-medium text-brand-600'
                         : 'text-gray-700'
                     }`}
                   >
@@ -770,7 +864,7 @@ export default function MasterList() {
               setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
               setPage(1);
             }}
-            className="inline-flex items-center gap-1 px-3 py-2 text-sm border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            className="inline-flex items-center gap-1 px-3 py-2 text-sm border border-gray-200 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
           >
             {sortOrder === 'asc' ? (
@@ -823,7 +917,7 @@ export default function MasterList() {
       </div>
 
       {/* ---- Table ---- */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -849,7 +943,7 @@ export default function MasterList() {
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">
                   Tier
                 </th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider min-w-[120px]">
+                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider min-w-[140px]">
                   Completeness
                 </th>
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">
@@ -862,7 +956,7 @@ export default function MasterList() {
                 <tr>
                   <td colSpan={9} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
-                      <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+                      <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
                       <span className="text-sm text-gray-500">
                         Loading physicians...
                       </span>
@@ -873,141 +967,105 @@ export default function MasterList() {
 
               {!loading && physicians.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <Users className="w-12 h-12 text-gray-300" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">
-                          No physicians found
-                        </p>
-                        <p className="text-xs text-gray-400 mt-1">
-                          {hasActiveFilters
-                            ? 'Try adjusting your filters'
-                            : 'Import or nominate physicians to get started'}
-                        </p>
-                      </div>
-                      {hasActiveFilters && (
-                        <button
-                          onClick={clearFilters}
-                          className="text-sm text-teal-600 hover:text-teal-800 font-medium"
-                        >
-                          Clear all filters
-                        </button>
-                      )}
-                    </div>
+                  <td colSpan={9}>
+                    <EmptyState
+                      icon={Users}
+                      title="No physicians found"
+                      description={
+                        hasActiveFilters
+                          ? 'Try adjusting your search or filters'
+                          : 'Import or nominate physicians to get started'
+                      }
+                      actionLabel={hasActiveFilters ? 'Clear all filters' : undefined}
+                      onAction={hasActiveFilters ? clearFilters : undefined}
+                    />
                   </td>
                 </tr>
               )}
 
               {!loading &&
-                physicians.map((p) => {
-                  const statusColor = STATUS_COLORS[p.record_status];
-                  return (
-                    <tr
-                      key={p.id}
-                      onClick={() => setDrawerPhysicianId(p.id)}
-                      className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    >
-                      {/* Name */}
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-navy-500">
-                          {p.first_name} {p.last_name}
+                physicians.map((p, index) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => setDrawerPhysicianId(p.id)}
+                    className={`table-row-hover cursor-pointer transition-colors ${
+                      index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'
+                    }`}
+                  >
+                    {/* Name */}
+                    <td className="px-4 py-3">
+                      <div className="font-medium text-navy-600">
+                        {p.first_name} {p.last_name}
+                      </div>
+                      {p.npi && (
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          NPI: {p.npi}
                         </div>
-                        {p.npi && (
-                          <div className="text-xs text-gray-400 mt-0.5">
-                            NPI: {p.npi}
-                          </div>
-                        )}
-                      </td>
+                      )}
+                    </td>
 
-                      {/* Credentials */}
-                      <td className="px-4 py-3 text-gray-600">
-                        {p.credentials || (
-                          <span className="text-gray-300">&mdash;</span>
-                        )}
-                      </td>
+                    {/* Credentials */}
+                    <td className="px-4 py-3 text-gray-600">
+                      {p.credentials || (
+                        <span className="text-gray-300">&mdash;</span>
+                      )}
+                    </td>
 
-                      {/* Institution */}
-                      <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate">
-                        {p.institution_name || (
-                          <span className="text-gray-300">&mdash;</span>
-                        )}
-                      </td>
+                    {/* Institution */}
+                    <td className="px-4 py-3 text-gray-600 max-w-[200px] truncate">
+                      {p.institution_name || (
+                        <span className="text-gray-300">&mdash;</span>
+                      )}
+                    </td>
 
-                      {/* State */}
-                      <td className="px-4 py-3 text-gray-600">
-                        {p.state || (
-                          <span className="text-gray-300">&mdash;</span>
-                        )}
-                      </td>
+                    {/* State */}
+                    <td className="px-4 py-3 text-gray-600">
+                      {p.state || (
+                        <span className="text-gray-300">&mdash;</span>
+                      )}
+                    </td>
 
-                      {/* Status */}
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
-                            statusColor?.bg ?? 'bg-gray-100'
-                          } ${statusColor?.text ?? 'text-gray-800'}`}
-                        >
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              statusColor?.dot ?? 'bg-gray-500'
-                            }`}
-                          />
-                          {STATUS_LABELS[p.record_status] ?? p.record_status}
-                        </span>
-                      </td>
+                    {/* Status */}
+                    <td className="px-4 py-3">
+                      <StatusBadge status={p.record_status} size="xs" />
+                    </td>
 
-                      {/* Source */}
-                      <td className="px-4 py-3">
-                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                          {SOURCE_LABELS[p.source_channel] ?? p.source_channel}
-                        </span>
-                      </td>
+                    {/* Source */}
+                    <td className="px-4 py-3">
+                      <span className="text-xs text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                        {SOURCE_LABELS[p.source_channel] ?? p.source_channel}
+                      </span>
+                    </td>
 
-                      {/* Tier */}
-                      <td className="px-4 py-3 text-center">
-                        {p.tier ? (
-                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-navy-50 text-navy-600 text-xs font-bold">
-                            {p.tier}
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">&mdash;</span>
-                        )}
-                      </td>
+                    {/* Tier */}
+                    <td className="px-4 py-3">
+                      <TierBadge tier={p.tier} />
+                    </td>
 
-                      {/* Completeness */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                    {/* Completeness */}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 rounded-full bg-gray-200">
                           <div
-                            className={`flex-1 h-2 rounded-full ${completenessTrackColor(
-                              p.completeness_score
-                            )}`}
-                          >
-                            <div
-                              className={`h-2 rounded-full transition-all ${completenessColor(
-                                p.completeness_score
-                              )}`}
-                              style={{
-                                width: `${Math.min(
-                                  100,
-                                  p.completeness_score
-                                )}%`,
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs text-gray-500 w-8 text-right tabular-nums">
-                            {Math.round(p.completeness_score)}%
-                          </span>
+                            className="h-2 rounded-full transition-all"
+                            style={{
+                              width: `${Math.min(100, p.completeness_score)}%`,
+                              backgroundColor: completenessBarColor(p.completeness_score),
+                            }}
+                          />
                         </div>
-                      </td>
+                        <span className="text-xs text-gray-500 w-8 text-right tabular-nums font-medium">
+                          {Math.round(p.completeness_score)}%
+                        </span>
+                      </div>
+                    </td>
 
-                      {/* Created */}
-                      <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
-                        {formatDate(p.created_at)}
-                      </td>
-                    </tr>
-                  );
-                })}
+                    {/* Created */}
+                    <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                      {formatDate(p.created_at)}
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
@@ -1023,7 +1081,7 @@ export default function MasterList() {
                   onClick={() =>
                     setShowPageSizeDropdown(!showPageSizeDropdown)
                   }
-                  className="inline-flex items-center gap-1 px-2.5 py-1 border border-gray-300 rounded-md bg-white text-sm hover:bg-gray-50"
+                  className="inline-flex items-center gap-1 px-2.5 py-1 border border-gray-200 rounded-lg bg-white text-sm hover:bg-gray-50"
                 >
                   {pageSize}
                   <ChevronDown className="w-3.5 h-3.5" />
@@ -1040,7 +1098,7 @@ export default function MasterList() {
                         }}
                         className={`w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50 ${
                           pageSize === size
-                            ? 'font-medium text-teal-600'
+                            ? 'font-medium text-brand-600'
                             : 'text-gray-700'
                         }`}
                       >
@@ -1065,14 +1123,14 @@ export default function MasterList() {
               <button
                 onClick={() => setPage(1)}
                 disabled={page <= 1}
-                className="px-2 py-1 text-sm border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-2 py-1 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 First
               </button>
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="p-1.5 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -1107,10 +1165,10 @@ export default function MasterList() {
                     <button
                       key={p}
                       onClick={() => setPage(p)}
-                      className={`min-w-[32px] px-2 py-1 text-sm border rounded-md transition-colors ${
+                      className={`min-w-[32px] px-2 py-1 text-sm border rounded-lg transition-colors ${
                         p === page
                           ? 'bg-navy-500 border-navy-500 text-white font-medium'
-                          : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
                       }`}
                     >
                       {p}
@@ -1122,14 +1180,14 @@ export default function MasterList() {
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="p-1.5 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="p-1.5 border border-gray-200 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
               <button
                 onClick={() => setPage(totalPages)}
                 disabled={page >= totalPages}
-                className="px-2 py-1 text-sm border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-2 py-1 text-sm border border-gray-200 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Last
               </button>

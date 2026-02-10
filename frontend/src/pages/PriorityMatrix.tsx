@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import {
   ScatterChart,
   Scatter,
@@ -14,6 +15,9 @@ import {
 import { Target, RefreshCw } from 'lucide-react';
 import { fetchPriorityMatrix, fetchPriorityScores, recomputeAllPriorities } from '../api/client';
 import type { PriorityMatrixResponse, PriorityScoreItem } from '../types';
+import { SkeletonPage } from '../components/ui/Skeleton';
+import { TierBadge } from '../components/ui/StatusBadge';
+import { EmptyState } from '../components/ui/EmptyState';
 
 const TIER_COLORS: Record<string, string> = {
   global_national: '#6366F1',
@@ -31,11 +35,11 @@ const TIER_LABELS: Record<string, string> = {
   emerging: 'Emerging',
 };
 
-const QUADRANT_LABELS = [
-  { x: 78, y: 85, label: 'Maintain & Grow', color: '#22C55E' },
-  { x: 30, y: 85, label: 'Quick Wins', color: '#F59E0B' },
-  { x: 78, y: 25, label: 'Monitor', color: '#3B82F6' },
-  { x: 30, y: 25, label: 'Deprioritize', color: '#9CA3AF' },
+const QUADRANT_NAMES = [
+  { label: 'Strategic Targets', x: 77.5, y: 80, color: '#0D9488' },
+  { label: 'Rising Opportunities', x: 27.5, y: 80, color: '#F59E0B' },
+  { label: 'Maintain & Nurture', x: 77.5, y: 25, color: '#3B82F6' },
+  { label: 'Monitor', x: 27.5, y: 25, color: '#9CA3AF' },
 ];
 
 interface CustomTooltipProps {
@@ -47,15 +51,42 @@ function MatrixTooltip({ active, payload }: CustomTooltipProps) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   return (
-    <div className="bg-white shadow-lg rounded-lg border border-gray-200 p-3 text-sm max-w-[220px]">
+    <div className="bg-white shadow-lg rounded-lg border border-gray-100 p-3 text-sm max-w-[240px]">
       <p className="font-semibold text-gray-900">{d.name}</p>
-      {d.institution && <p className="text-xs text-gray-500">{d.institution}</p>}
-      <div className="mt-2 space-y-1 text-xs">
-        <p>Tier Score: <span className="font-medium">{d.tier_score?.toFixed(1)}</span></p>
-        <p>Priority Score: <span className="font-medium">{d.priority_score?.toFixed(1)}</span></p>
-        {d.tier && <p>Tier: <span className="font-medium">{TIER_LABELS[d.tier] || d.tier}</span></p>}
-        {d.priority_rank && <p>Rank: <span className="font-medium">#{d.priority_rank}</span></p>}
+      {d.institution && <p className="text-xs text-gray-500 mt-0.5">{d.institution}</p>}
+      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+        <span className="text-gray-500">Tier Score</span>
+        <span className="font-medium text-right">{d.tier_score?.toFixed(1)}</span>
+        <span className="text-gray-500">Priority</span>
+        <span className="font-medium text-right">{d.priority_score?.toFixed(1)}</span>
+        {d.tier && (
+          <>
+            <span className="text-gray-500">Tier</span>
+            <span className="font-medium text-right">{TIER_LABELS[d.tier] || d.tier}</span>
+          </>
+        )}
+        {d.priority_rank && (
+          <>
+            <span className="text-gray-500">Rank</span>
+            <span className="font-medium text-right">#{d.priority_rank}</span>
+          </>
+        )}
       </div>
+    </div>
+  );
+}
+
+function MiniBar({ value, max = 100 }: { value: number; max?: number }) {
+  const pct = Math.min((value / max) * 100, 100);
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div
+          className="h-full rounded-full bg-brand-500 transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="text-xs font-medium text-gray-700 min-w-[2rem] text-right">{value.toFixed(0)}</span>
     </div>
   );
 }
@@ -76,8 +107,8 @@ export default function PriorityMatrix() {
       ]);
       setMatrix(matrixRes.data);
       setScores(scoresRes.data.items);
-    } catch (err) {
-      console.error('Failed to load priority data', err);
+    } catch {
+      toast.error('Failed to load priority data');
     } finally {
       setLoading(false);
     }
@@ -90,8 +121,9 @@ export default function PriorityMatrix() {
     try {
       await recomputeAllPriorities();
       await load();
+      toast.success('Priorities recomputed successfully');
     } catch {
-      // ignore
+      toast.error('Failed to recompute priorities');
     } finally {
       setRecomputing(false);
     }
@@ -100,13 +132,7 @@ export default function PriorityMatrix() {
   const filteredPoints = matrix?.points.filter(p => !tierFilter || p.tier === tierFilter) || [];
   const filteredScores = scores.filter(s => !tierFilter || s.tier === tierFilter);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600" />
-      </div>
-    );
-  }
+  if (loading) return <SkeletonPage />;
 
   const summary = matrix?.summary;
 
@@ -115,13 +141,18 @@ export default function PriorityMatrix() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Target className="h-7 w-7 text-indigo-600" />
-          <h1 className="text-2xl font-bold text-gray-900">Priority Matrix</h1>
+          <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
+            <Target className="h-5 w-5 text-brand-600" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">Priority Matrix</h1>
+            <p className="text-xs text-gray-500">Tier classification vs engagement priority</p>
+          </div>
         </div>
         <button
           onClick={handleRecompute}
           disabled={recomputing}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-[#1e3a5f] text-white hover:bg-[#16304f] disabled:opacity-50 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg bg-brand-500 text-white hover:bg-brand-600 disabled:opacity-50 transition-colors shadow-sm"
         >
           <RefreshCw className={`h-4 w-4 ${recomputing ? 'animate-spin' : ''}`} />
           {recomputing ? 'Recomputing...' : 'Recompute All'}
@@ -131,37 +162,29 @@ export default function PriorityMatrix() {
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-            <p className="text-xs font-medium text-green-600 uppercase">Maintain & Grow</p>
-            <p className="text-2xl font-bold text-green-800 mt-1">{summary.high_priority_high_tier}</p>
-            <p className="text-xs text-green-600 mt-0.5">High tier + High priority</p>
-          </div>
-          <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
-            <p className="text-xs font-medium text-amber-600 uppercase">Quick Wins</p>
-            <p className="text-2xl font-bold text-amber-800 mt-1">{summary.high_priority_low_tier}</p>
-            <p className="text-xs text-amber-600 mt-0.5">Low tier + High priority</p>
-          </div>
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <p className="text-xs font-medium text-blue-600 uppercase">Monitor</p>
-            <p className="text-2xl font-bold text-blue-800 mt-1">{summary.low_priority_high_tier}</p>
-            <p className="text-xs text-blue-600 mt-0.5">High tier + Low priority</p>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <p className="text-xs font-medium text-gray-500 uppercase">Deprioritize</p>
-            <p className="text-2xl font-bold text-gray-700 mt-1">{summary.low_priority_low_tier}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Low tier + Low priority</p>
-          </div>
+          {[
+            { label: 'Strategic Targets', count: summary.high_priority_high_tier, desc: 'High tier + High priority', color: 'brand', bg: 'bg-brand-50', border: 'border-brand-200', text: 'text-brand-700' },
+            { label: 'Rising Opportunities', count: summary.high_priority_low_tier, desc: 'Low tier + High priority', color: 'amber', bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700' },
+            { label: 'Maintain & Nurture', count: summary.low_priority_high_tier, desc: 'High tier + Low priority', color: 'blue', bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700' },
+            { label: 'Monitor', count: summary.low_priority_low_tier, desc: 'Low tier + Low priority', color: 'gray', bg: 'bg-gray-50', border: 'border-gray-200', text: 'text-gray-600' },
+          ].map((card) => (
+            <div key={card.label} className={`${card.bg} rounded-lg p-4 border ${card.border}`}>
+              <p className={`text-[10px] font-semibold ${card.text} uppercase tracking-wider`}>{card.label}</p>
+              <p className={`text-2xl font-bold ${card.text} mt-1`}>{card.count}</p>
+              <p className={`text-[11px] ${card.text} opacity-70 mt-0.5`}>{card.desc}</p>
+            </div>
+          ))}
         </div>
       )}
 
       {/* Scatter Chart */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="bg-white rounded-lg shadow-card p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Tier vs Priority</h2>
+          <h2 className="text-base font-semibold text-gray-900">Tier Score vs Priority Score</h2>
           <select
             value={tierFilter}
             onChange={(e) => setTierFilter(e.target.value)}
-            className="text-sm border border-gray-300 rounded-md px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/40"
+            className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400"
           >
             <option value="">All Tiers</option>
             {Object.entries(TIER_LABELS).map(([key, label]) => (
@@ -170,28 +193,36 @@ export default function PriorityMatrix() {
           </select>
         </div>
 
-        <div className="h-[450px]">
+        <div className="relative h-[480px]">
+          {/* Quadrant background labels */}
+          <div className="absolute inset-0 pointer-events-none z-0">
+            <div className="absolute right-[10%] top-[8%] text-brand-500/10 text-lg font-bold">Strategic Targets</div>
+            <div className="absolute left-[5%] top-[8%] text-amber-500/10 text-lg font-bold">Rising Opportunities</div>
+            <div className="absolute right-[10%] bottom-[12%] text-blue-500/10 text-lg font-bold">Maintain & Nurture</div>
+            <div className="absolute left-[5%] bottom-[12%] text-gray-400/10 text-lg font-bold">Monitor</div>
+          </div>
+
           <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+            <ScatterChart margin={{ top: 20, right: 30, bottom: 30, left: 20 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis
                 type="number"
                 dataKey="tier_score"
                 name="Tier Score"
                 domain={[0, 100]}
-                tick={{ fontSize: 11 }}
-                label={{ value: 'Tier Score', position: 'bottom', offset: 0, style: { fontSize: 12, fill: '#6b7280' } }}
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                label={{ value: 'Tier Score', position: 'bottom', offset: 10, style: { fontSize: 12, fill: '#64748b', fontWeight: 500 } }}
               />
               <YAxis
                 type="number"
                 dataKey="priority_score"
                 name="Priority Score"
                 domain={[0, 100]}
-                tick={{ fontSize: 11 }}
-                label={{ value: 'Priority Score', angle: -90, position: 'insideLeft', style: { fontSize: 12, fill: '#6b7280' } }}
+                tick={{ fontSize: 11, fill: '#94a3b8' }}
+                label={{ value: 'Priority Score', angle: -90, position: 'insideLeft', offset: 5, style: { fontSize: 12, fill: '#64748b', fontWeight: 500 } }}
               />
-              <ReferenceLine x={55} stroke="#94a3b8" strokeDasharray="6 4" strokeWidth={1.5} />
-              <ReferenceLine y={50} stroke="#94a3b8" strokeDasharray="6 4" strokeWidth={1.5} />
+              <ReferenceLine x={55} stroke="#cbd5e1" strokeDasharray="8 4" strokeWidth={1} />
+              <ReferenceLine y={50} stroke="#cbd5e1" strokeDasharray="8 4" strokeWidth={1} />
               <Tooltip content={<MatrixTooltip />} />
               <Scatter
                 data={filteredPoints}
@@ -204,7 +235,8 @@ export default function PriorityMatrix() {
                   <Cell
                     key={idx}
                     fill={TIER_COLORS[point.tier || ''] || '#9CA3AF'}
-                    r={6}
+                    r={7}
+                    opacity={0.85}
                   />
                 ))}
               </Scatter>
@@ -212,8 +244,8 @@ export default function PriorityMatrix() {
           </ResponsiveContainer>
         </div>
 
-        {/* Quadrant labels overlay */}
-        <div className="flex justify-center gap-6 mt-2">
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-6 mt-3 pt-3 border-t border-gray-100">
           {Object.entries(TIER_COLORS).map(([tier, color]) => (
             <div key={tier} className="flex items-center gap-1.5 text-xs text-gray-500">
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
@@ -224,70 +256,56 @@ export default function PriorityMatrix() {
       </div>
 
       {/* Ranked Table */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Priority Rankings</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">
-                <th className="py-2 px-3">Rank</th>
-                <th className="py-2 px-3">Physician</th>
-                <th className="py-2 px-3">Institution</th>
-                <th className="py-2 px-3">Tier</th>
-                <th className="py-2 px-3 text-right">Tier Score</th>
-                <th className="py-2 px-3 text-right">Priority</th>
-                <th className="py-2 px-3 text-right">Rx Opp.</th>
-                <th className="py-2 px-3 text-right">Influence</th>
-                <th className="py-2 px-3 text-right">Sent. Gap</th>
-                <th className="py-2 px-3 text-right">Eng. Deficit</th>
-                <th className="py-2 px-3 text-right">Comp. Urg.</th>
-                <th className="py-2 px-3 text-right">Compl. Gap</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filteredScores.map((item) => (
-                <tr
-                  key={item.physician_id}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() => navigate(`/persona/${item.physician_id}`)}
-                >
-                  <td className="py-2.5 px-3">
-                    <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold">
-                      {item.priority_rank ?? '-'}
-                    </span>
-                  </td>
-                  <td className="py-2.5 px-3 font-medium text-gray-900">{item.name}</td>
-                  <td className="py-2.5 px-3 text-gray-500 truncate max-w-[160px]">{item.institution || '-'}</td>
-                  <td className="py-2.5 px-3">
-                    {item.tier && (
-                      <span
-                        className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                        style={{
-                          backgroundColor: `${TIER_COLORS[item.tier] || '#9CA3AF'}20`,
-                          color: TIER_COLORS[item.tier] || '#6B7280',
-                        }}
-                      >
-                        {TIER_LABELS[item.tier] || item.tier}
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2.5 px-3 text-right text-gray-700">{item.tier_score?.toFixed(1) ?? '-'}</td>
-                  <td className="py-2.5 px-3 text-right font-semibold text-gray-900">{item.composite_score.toFixed(1)}</td>
-                  <td className="py-2.5 px-3 text-right text-gray-600">{item.prescribing_opportunity.toFixed(0)}</td>
-                  <td className="py-2.5 px-3 text-right text-gray-600">{item.influence_leverage.toFixed(0)}</td>
-                  <td className="py-2.5 px-3 text-right text-gray-600">{item.sentiment_gap.toFixed(0)}</td>
-                  <td className="py-2.5 px-3 text-right text-gray-600">{item.engagement_deficit.toFixed(0)}</td>
-                  <td className="py-2.5 px-3 text-right text-gray-600">{item.competitive_urgency.toFixed(0)}</td>
-                  <td className="py-2.5 px-3 text-right text-gray-600">{item.completeness_gap.toFixed(0)}</td>
+      <div className="bg-white rounded-lg shadow-card p-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-4">Priority Rankings</h2>
+        {filteredScores.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  {['Rank', 'Physician', 'Institution', 'Tier', 'Tier Score', 'Priority', 'Rx Opp.', 'Influence', 'Sent. Gap', 'Eng. Deficit', 'Comp. Urg.', 'Compl. Gap'].map((h, i) => (
+                    <th key={h} className={`py-2.5 px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wider ${i >= 4 ? 'text-right' : 'text-left'}`}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {filteredScores.length === 0 && (
-          <p className="text-sm text-gray-400 text-center py-8 italic">
-            No priority scores computed yet. Click "Recompute All" to generate scores.
-          </p>
+              </thead>
+              <tbody>
+                {filteredScores.map((item, idx) => (
+                  <tr
+                    key={item.physician_id}
+                    className={`table-row-hover cursor-pointer transition-colors border-b border-gray-50 ${idx % 2 === 0 ? 'bg-gray-50/30' : ''}`}
+                    onClick={() => navigate(`/persona/${item.physician_id}`)}
+                  >
+                    <td className="py-2.5 px-3">
+                      <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-brand-50 text-brand-700 text-xs font-bold">
+                        {item.priority_rank ?? '-'}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 font-medium text-gray-900">{item.name}</td>
+                    <td className="py-2.5 px-3 text-gray-500 truncate max-w-[160px]">{item.institution || '-'}</td>
+                    <td className="py-2.5 px-3"><TierBadge tier={item.tier} /></td>
+                    <td className="py-2.5 px-3 text-right text-gray-600">{item.tier_score?.toFixed(1) ?? '-'}</td>
+                    <td className="py-2.5 px-3 text-right">
+                      <MiniBar value={item.composite_score} />
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-gray-500 text-xs">{item.prescribing_opportunity.toFixed(0)}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-500 text-xs">{item.influence_leverage.toFixed(0)}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-500 text-xs">{item.sentiment_gap.toFixed(0)}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-500 text-xs">{item.engagement_deficit.toFixed(0)}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-500 text-xs">{item.competitive_urgency.toFixed(0)}</td>
+                    <td className="py-2.5 px-3 text-right text-gray-500 text-xs">{item.completeness_gap.toFixed(0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <EmptyState
+            icon={Target}
+            title="No priority scores yet"
+            description="Click Recompute All to calculate priority scores for all validated physicians."
+            actionLabel="Recompute All"
+            onAction={handleRecompute}
+          />
         )}
       </div>
     </div>
