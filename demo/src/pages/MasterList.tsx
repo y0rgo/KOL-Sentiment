@@ -67,6 +67,34 @@ function completenessTrackColor(score: number): string {
   return 'bg-green-100';
 }
 
+function kolPowerTooltip(p: Physician): string {
+  const parts: string[] = [];
+  const tier = p.tier?.replace(/_/g, ' ');
+  if (tier) parts.push(`Tier: ${tier} (${p.tier_score ?? '?'})`);
+  if (p.completeness_score >= 90) parts.push('Rich data profile');
+  else if (p.completeness_score < 50) parts.push('Sparse data — score limited');
+  if ((p.kol_power_index ?? 0) >= 80) parts.push('Top-tier influence across publications, trials & congress');
+  else if ((p.kol_power_index ?? 0) >= 60) parts.push('Strong regional/national influence');
+  else if ((p.kol_power_index ?? 0) >= 40) parts.push('Emerging influence profile');
+  else parts.push('Limited data or early-stage KOL');
+  return parts.join(' · ');
+}
+
+function engPriorityTooltip(p: Physician): string {
+  const parts: string[] = [];
+  const ep = p.engagement_priority ?? 0;
+  if (ep >= 70) parts.push('Urgent: needs assessment or engagement');
+  else if (ep >= 50) parts.push('Moderate: conversion opportunity');
+  else if (ep >= 30) parts.push('Low: progressing through funnel');
+  else parts.push('Handled: already converted or fully engaged');
+  if (p.record_status === 'discovered' || p.record_status === 'nominated')
+    parts.push('Not yet validated');
+  if (p.completeness_score < 50) parts.push('Major data gaps');
+  const tier = p.tier?.replace(/_/g, ' ');
+  if (tier && ep >= 60) parts.push(`${tier} with insufficient engagement`);
+  return parts.join(' · ');
+}
+
 /* -------------------------------------------------------------------------- */
 /*  PhysicianDrawer                                                           */
 /* -------------------------------------------------------------------------- */
@@ -847,12 +875,15 @@ export default function MasterList() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {p.kol_power_index != null ? (
-                          <span className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold ${
-                            p.kol_power_index >= 80 ? 'bg-emerald-100 text-emerald-800' :
-                            p.kol_power_index >= 60 ? 'bg-blue-100 text-blue-800' :
-                            p.kol_power_index >= 40 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
+                          <span
+                            title={kolPowerTooltip(p)}
+                            className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold cursor-help ${
+                              p.kol_power_index >= 80 ? 'bg-emerald-100 text-emerald-800' :
+                              p.kol_power_index >= 60 ? 'bg-blue-100 text-blue-800' :
+                              p.kol_power_index >= 40 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-600'
+                            }`}
+                          >
                             {p.kol_power_index}
                           </span>
                         ) : (
@@ -861,12 +892,15 @@ export default function MasterList() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {p.engagement_priority != null ? (
-                          <span className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold ${
-                            p.engagement_priority >= 70 ? 'bg-red-100 text-red-800' :
-                            p.engagement_priority >= 50 ? 'bg-orange-100 text-orange-800' :
-                            p.engagement_priority >= 30 ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }`}>
+                          <span
+                            title={engPriorityTooltip(p)}
+                            className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold cursor-help ${
+                              p.engagement_priority >= 70 ? 'bg-red-100 text-red-800' :
+                              p.engagement_priority >= 50 ? 'bg-orange-100 text-orange-800' :
+                              p.engagement_priority >= 30 ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}
+                          >
                             {p.engagement_priority}
                           </span>
                         ) : (
