@@ -167,6 +167,29 @@ export interface ListHealth {
   count_by_state: Record<string, number>;
 }
 
+export type PillarName = 'disease_belief' | 'treatment_philosophy' | 'competitive_positioning';
+
+export interface PersonaPillar {
+  name: PillarName;
+  label: string;
+  summary: string;
+  key_points: string[];
+}
+
+export interface EvidenceSource {
+  citation: string;
+  title: string;
+  insight: string;
+  pillars: PillarName[];
+}
+
+export interface PersonaIntelligence {
+  pillars: PersonaPillar[];
+  evidence_map: EvidenceSource[];
+  sentiment_rationale?: string;
+  product_context?: string;
+}
+
 export interface Persona {
   identity: Physician & { tier_score: number | null };
   prescribing: any[];
@@ -176,6 +199,7 @@ export interface Persona {
   sentiment: SentimentScore[];
   engagements: EngagementRecord[];
   competitive: any[];
+  intelligence?: PersonaIntelligence;
 }
 
 export interface TierDimensionScore {

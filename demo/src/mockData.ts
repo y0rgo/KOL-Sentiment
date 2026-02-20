@@ -9,6 +9,7 @@ import type {
   EngagementRecord,
   ListHealth,
   Persona,
+  PersonaIntelligence,
   TierBreakdownResponse,
   TierConfigResponse,
 } from './types';
@@ -630,6 +631,40 @@ export const physicians: Physician[] = [
     created_at: '2025-12-18T12:00:00Z',
     updated_at: '2025-12-18T12:00:00Z',
   },
+  {
+    id: 'p019',
+    npi: '1144286255',
+    first_name: 'James',
+    last_name: 'Howard',
+    credentials: 'MD, FAAN',
+    specialty: 'Neurology',
+    subspecialty: 'Neuromuscular Medicine',
+    practice_type: 'Academic',
+    institution_name: 'University of North Carolina at Chapel Hill',
+    institution_type: 'Academic Medical Center',
+    city: 'Chapel Hill',
+    state: 'NC',
+    region: 'Southeast',
+    country: 'US',
+    years_in_practice: 35,
+    fellowship_training: 'Neuromuscular',
+    institutional_role: 'Distinguished Professor',
+    record_status: 'validated',
+    status_changed_at: '2025-11-01T10:00:00Z',
+    status_changed_by: 'admin',
+    decline_reason: null,
+    source_channel: 'import',
+    source_detail: 'KOL Intelligence Deep-Dive Import',
+    completeness_score: 98,
+    tier: 'global_national',
+    tier_score: 95.2,
+    priority_score: 99,
+    priority_rank: 1,
+    is_active: true,
+    notes: 'Global gMG KOL. PI for ADAPT program (argenx), REGAIN (Alexion), RAISE (UCB). Distinguished Professor at UNC. FAAN.',
+    created_at: '2025-09-01T08:00:00Z',
+    updated_at: '2025-12-22T16:00:00Z',
+  },
 ];
 
 /* ================================================================== */
@@ -911,6 +946,24 @@ const sentimentScores: Record<string, SentimentScore[]> = {
       created_at: '2025-12-01T16:00:00Z',
     },
   ],
+  p019: [
+    {
+      id: 's019-01',
+      physician_id: 'p019',
+      disease_id: 'gmg',
+      assessment_date: '2025-12-20',
+      disease_belief_score: 5.0,
+      product_perception_score: 5.0,
+      behavioral_readiness_score: 5.0,
+      composite_score: 5.0,
+      conversion_stage: 'advocating',
+      score_type: 'intelligence_assessment',
+      confidence_level: 'very_high',
+      scored_by: 'KOL Intelligence Team',
+      notes: 'Terminal advocacy stage. Global PI for ADAPT efgartigimod program. Publicly champions FcRn inhibition as paradigm shift in gMG treatment. 15/15 composite across all three sentiment dimensions.',
+      created_at: '2025-12-20T10:00:00Z',
+    },
+  ],
 };
 
 /* ================================================================== */
@@ -987,6 +1040,47 @@ const engagementRecords: Record<string, EngagementRecord[]> = {
       field_notes: 'Reviewed latest efficacy data, requested reprint',
       recorded_by: 'Jennifer Lee',
       created_at: '2025-11-28T17:00:00Z',
+    },
+  ],
+  p019: [
+    {
+      id: 'e019-01',
+      physician_id: 'p019',
+      engagement_type: 'advisory_board',
+      engagement_date: '2025-11-10',
+      channel: 'In-person',
+      duration_minutes: 180,
+      topic: 'ADAPT program global data review & SC formulation strategy',
+      disease_id: 'gmg',
+      field_notes: 'Global PI perspective on ADAPT-SC real-world deployment. Discussed UNC fellowship pipeline for gMG site expansion.',
+      recorded_by: 'KOL Intelligence Team',
+      created_at: '2025-11-10T18:00:00Z',
+    },
+    {
+      id: 'e019-02',
+      physician_id: 'p019',
+      engagement_type: 'speaker_program',
+      engagement_date: '2025-10-15',
+      channel: 'In-person',
+      duration_minutes: 90,
+      topic: 'Peer-to-peer education: FcRn inhibition in clinical practice',
+      disease_id: 'gmg',
+      field_notes: 'Presented to 120+ neurologists at regional symposium. Strong advocacy for early targeted therapy over broad immunosuppression.',
+      recorded_by: 'Medical Affairs',
+      created_at: '2025-10-15T20:00:00Z',
+    },
+    {
+      id: 'e019-03',
+      physician_id: 'p019',
+      engagement_type: 'congress_meeting',
+      engagement_date: '2025-04-20',
+      channel: 'In-person',
+      duration_minutes: 60,
+      topic: 'AAN 2025 keynote follow-up: gMG treatment optimization',
+      disease_id: 'gmg',
+      field_notes: 'Post-keynote meeting at AAN. Discussed publication co-authorship opportunities on ADAPT+ long-term data.',
+      recorded_by: 'Medical Affairs',
+      created_at: '2025-04-20T22:00:00Z',
     },
   ],
 };
@@ -1071,6 +1165,21 @@ const tierBreakdowns: Record<string, TierBreakdownResponse> = {
       { dimension: 'industry_recognition', raw_score: 65, weighted_score: 8.1, weight: 12.5 },
     ],
   },
+  p019: {
+    physician_id: 'p019',
+    tier: 'global_national',
+    tier_score: 95.2,
+    dimensions: [
+      { dimension: 'scientific_impact', raw_score: 97, weighted_score: 12.1, weight: 12.5 },
+      { dimension: 'clinical_authority', raw_score: 98, weighted_score: 12.3, weight: 12.5 },
+      { dimension: 'peer_influence', raw_score: 95, weighted_score: 11.9, weight: 12.5 },
+      { dimension: 'congress_presence', raw_score: 96, weighted_score: 12.0, weight: 12.5 },
+      { dimension: 'trial_leadership', raw_score: 99, weighted_score: 12.4, weight: 12.5 },
+      { dimension: 'guideline_editorial_authority', raw_score: 90, weighted_score: 11.3, weight: 12.5 },
+      { dimension: 'digital_advocacy', raw_score: 65, weighted_score: 8.1, weight: 12.5 },
+      { dimension: 'industry_recognition', raw_score: 98, weighted_score: 12.3, weight: 12.5 },
+    ],
+  },
 };
 
 /* ================================================================== */
@@ -1096,9 +1205,9 @@ export const tierConfigWeights: TierConfigResponse = {
 /* ================================================================== */
 
 export const listHealth: ListHealth = {
-  total_physicians: 18,
+  total_physicians: 19,
   count_by_status: {
-    validated: 12,
+    validated: 13,
     imported: 1,
     under_review: 1,
     nominated: 1,
@@ -1107,7 +1216,7 @@ export const listHealth: ListHealth = {
     archived: 0,
   },
   count_by_source: {
-    import: 10,
+    import: 11,
     field_nomination: 3,
     discovery_publications: 1,
     discovery_congress: 1,
@@ -1115,12 +1224,12 @@ export const listHealth: ListHealth = {
     discovery_referral: 0,
     discovery_competitive_trials: 0,
   },
-  average_completeness: 72,
+  average_completeness: 73,
   completeness_distribution: {
     '0-25': 0,
     '25-50': 3,
     '50-75': 5,
-    '75-100': 10,
+    '75-100': 11,
   },
   count_by_state: {
     CA: 2,
@@ -1133,6 +1242,7 @@ export const listHealth: ListHealth = {
     DC: 1,
     MD: 1,
     FL: 1,
+    NC: 1,
   },
 };
 
@@ -1208,6 +1318,205 @@ export function getPersona(physicianId: string): Persona | null {
     );
   }
 
+  let intelligence: PersonaIntelligence | undefined;
+
+  if (physicianId === 'p019') {
+    publications.push(
+      { title: 'Safety, efficacy, and tolerability of efgartigimod in patients with generalised myasthenia gravis (ADAPT)', journal: 'Lancet Neurology', date: '2021-07-01', impact_factor: 28.3 },
+      { title: 'Safety and efficacy of eculizumab in anti-acetylcholine receptor antibody-positive refractory generalised myasthenia gravis (REGAIN)', journal: 'Lancet Neurology', date: '2017-12-01', impact_factor: 28.3 },
+      { title: 'Zilucoplan in patients with generalised myasthenia gravis (RAISE)', journal: 'Lancet Neurology', date: '2023-05-01', impact_factor: 28.3 },
+      { title: 'Ravulizumab in myasthenia gravis (CHAMPION-MG)', journal: 'NEJM Evidence', date: '2022-05-01', impact_factor: 20.1 },
+      { title: 'Randomized phase 2 study of FcRn antagonist efgartigimod in generalized myasthenia gravis', journal: 'Neurology', date: '2019-06-01', impact_factor: 9.9 },
+      { title: 'Subcutaneous efgartigimod in generalised myasthenia gravis (ADAPT-SC)', journal: 'Journal of Autoimmunity', date: '2024-01-01', impact_factor: 12.8 },
+      { title: 'Long-term safety and efficacy of efgartigimod in generalised myasthenia gravis (ADAPT+)', journal: 'Frontiers in Neurology', date: '2024-01-01', impact_factor: 4.0 },
+      { title: 'Myasthenia gravis — autoantibody characteristics and their implications for therapy', journal: 'Annals of the New York Academy of Sciences', date: '2018-01-01', impact_factor: 5.2 },
+      { title: 'Zilucoplan: an investigational complement C5 inhibitor for the treatment of acetylcholine receptor autoantibody-positive generalized myasthenia gravis', journal: 'Expert Opinion on Investigational Drugs', date: '2021-05-01', impact_factor: 5.0 },
+      { title: 'Ravulizumab in myasthenia gravis: subgroup analysis by time from diagnosis (CHAMPION-MG)', journal: 'Muscle & Nerve', date: '2024-05-01', impact_factor: 3.4 },
+      { title: 'Long-term safety and efficacy of zilucoplan in patients with generalised myasthenia gravis (RAISE-XT)', journal: 'Therapeutic Advances in Neurological Disorders', date: '2024-01-01', impact_factor: 4.4 },
+    );
+    congress.push(
+      { congress_name: 'AAN 2025', role: 'Keynote Speaker', year: 2025, presentation_type: 'Plenary' },
+      { congress_name: 'AANEM 2025', role: 'Session Chair', year: 2025, presentation_type: 'Symposium' },
+      { congress_name: 'MGFA Scientific Advisory Board', role: 'Board Member', year: 2025, presentation_type: 'Advisory' },
+    );
+    trials.push(
+      { trial_name: 'ADAPT', role: 'Global Principal Investigator', phase: '3', status: 'Completed' },
+      { trial_name: 'ADAPT+', role: 'Global Principal Investigator', phase: '3 OLE', status: 'Completed' },
+      { trial_name: 'ADAPT-SC', role: 'Global Principal Investigator', phase: '3', status: 'Completed' },
+      { trial_name: 'ADAPT SERON', role: 'Global Principal Investigator', phase: '3', status: 'Completed' },
+      { trial_name: 'ADAPT OCULUS', role: 'Global Principal Investigator', phase: '3', status: 'Enrolling' },
+      { trial_name: 'REGAIN', role: 'Principal Investigator', phase: '3', status: 'Completed' },
+      { trial_name: 'CHAMPION-MG', role: 'Co-Investigator', phase: '3', status: 'Completed' },
+      { trial_name: 'RAISE', role: 'Global Principal Investigator', phase: '3', status: 'Completed' },
+    );
+    prescribing.push(
+      { period: 'Q3 2025', patients: 85, new_starts: 12, formulation: 'SC' },
+      { period: 'Q2 2025', patients: 78, new_starts: 10, formulation: 'SC' },
+    );
+    competitive.push(
+      { company: 'argenx', type: 'Global PI / Advisory Board', product: 'Vyvgart (efgartigimod)', year: 2025, payment: 45000 },
+      { company: 'argenx', type: 'Research Support (Institutional)', product: 'Vyvgart (efgartigimod)', year: 2024, payment: 0 },
+      { company: 'Alexion/AstraZeneca', type: 'Principal Investigator', product: 'Soliris (eculizumab)', year: 2024, payment: 25000 },
+      { company: 'Alexion/AstraZeneca', type: 'Co-Investigator', product: 'Ultomiris (ravulizumab)', year: 2024, payment: 18000 },
+      { company: 'UCB', type: 'Global PI', product: 'Zilbrysq (zilucoplan)', year: 2025, payment: 30000 },
+      { company: 'Immunovant', type: 'Consultant', product: 'Batoclimab', year: 2024, payment: 10000 },
+      { company: 'Regeneron', type: 'Advisory Board', product: 'Pipeline (anti-FcRn)', year: 2024, payment: 8000 },
+      { company: 'Janssen', type: 'Consultant', product: 'Nipocalimab', year: 2024, payment: 12000 },
+      { company: 'Sanofi-Genzyme', type: 'Consultant', product: 'Pipeline', year: 2024, payment: 8000 },
+      { company: 'Momenta (Janssen)', type: 'Consultant', product: 'Nipocalimab', year: 2023, payment: 10000 },
+    );
+
+    intelligence = {
+      product_context: 'VYVGART (efgartigimod)',
+      sentiment_rationale: 'Howard is not merely favorable toward VYVGART — he is the architect of its clinical evidence base. As global PI for the ADAPT program (Phase 2 through Phase 3, open-label extension, SC formulation, seronegative, and ocular studies), he has generated the pivotal data that defines efgartigimod\'s clinical profile. His ADAPT Phase 3 publication in Lancet Neurology (2021) established the 67.7% responder rate in AChR-Ab+ patients and the rapid two-week onset that became the product\'s core positioning. He publicly advocates for FcRn inhibition as a targeted alternative to broad immunosuppression, describing prednisone as "the most hated drug on the market." His sentiment is at terminal advocacy — the strategic question is not conversion but leverage.',
+      pillars: [
+        {
+          name: 'disease_belief',
+          label: 'Disease Belief',
+          summary: 'Howard anchors gMG pathophysiology in IgG-mediated autoimmunity with complement activation as the primary downstream mechanism of NMJ destruction. He views the disease as highly heterogeneous, requiring individualized treatment approaches, and advocates for early intervention before irreversible NMJ damage occurs.',
+          key_points: [
+            '74-88% of gMG patients have AChR autoantibodies that activate complement, leading to NMJ destruction (Ann N Y Acad Sci 2018)',
+            'MAC formation is required to induce experimental autoimmune MG — complement inhibition can prevent and reverse disease',
+            'Each patient experiences MG differently; disease heterogeneity demands individualized approaches (argenx press release)',
+            'Sustained efficacy demonstrated in both AChR-Ab+ and AChR-Ab- populations (ADAPT+ OLE, Front Neurol 2024)',
+            'Deep concern about irreversible damage: "Once the muscle fiber has been destroyed, we don\'t know what happens... we assume when it\'s gone, it\'s gone" (AJMC 2026)',
+            'Numerically greater improvement in patients treated within 2 years of diagnosis vs. later (CHAMPION-MG subgroup, Muscle Nerve 2024)',
+          ],
+        },
+        {
+          name: 'treatment_philosophy',
+          label: 'Treatment Philosophy',
+          summary: 'Howard\'s treatment philosophy centers on replacing broad immunosuppression with targeted molecular therapies. He is mechanism-agnostic, having led pivotal trials for both FcRn inhibitors and complement inhibitors, and prioritizes speed of onset, individualized dosing, and subcutaneous self-administration.',
+          key_points: [
+            'Prednisone is "the most hated drug on the market" — seeks drugs that "work quickly, work well, but have narrow side effect profiles" (AJMC 2026)',
+            'Led first-in-class trials across two distinct mechanism classes: FcRn inhibition (efgartigimod) and complement C5 inhibition (eculizumab, zilucoplan)',
+            'Advocates for complement inhibitor therapy "earlier in the treatment paradigm" (Expert Opin Investig Drugs 2021)',
+            'Designed ADAPT trial with individualized dosing based on clinical response — called it "a unique feature" (Lancet Neurol 2021)',
+            'Led ADAPT-SC demonstrating SC non-inferiority to IV (66.4% vs 62.2% IgG reduction), enabling patient self-administration',
+            'Speed of response is a primary criterion: 84.1% of ADAPT responders improved within first two weeks',
+          ],
+        },
+        {
+          name: 'competitive_positioning',
+          label: 'Competitive Positioning',
+          summary: 'Howard maintains broad industry relationships as PI across argenx (ADAPT program), Alexion/AstraZeneca (REGAIN, CHAMPION-MG), and UCB (RAISE). He does not publicly favor one mechanism class over another, positioning himself as mechanism-agnostic but data-driven.',
+          key_points: [
+            'Global PI for argenx: ADAPT, ADAPT+, ADAPT-SC, ADAPT SERON, ADAPT OCULUS — the complete efgartigimod evidence program',
+            'PI for Alexion: REGAIN (eculizumab Phase 3) and co-author on CHAMPION-MG (ravulizumab Phase 3, NEJM Evidence)',
+            'Global PI for UCB: RAISE (zilucoplan Phase 3, Lancet Neurol 2023)',
+            'Additional consulting/advisory: Immunovant, Regeneron, Viela Bio, Janssen, Sanofi-Genzyme, Momenta, NMD Pharma, Cartesian Therapeutics',
+            'Non-industry: NIH (NINDS, NIAMS), CDC, PCORI, MDA, MGFA Scientific Advisory Board (non-compensated)',
+            'UNC neuromuscular fellowship produces regional KOLs who adopt his treatment frameworks — influence extends through training pipeline',
+          ],
+        },
+      ],
+      evidence_map: [
+        {
+          citation: 'Howard JF Jr et al. Lancet Neurol. 2021;20(7):526-536',
+          title: 'ADAPT Phase 3: Efgartigimod in generalised myasthenia gravis',
+          insight: 'First-author on pivotal trial. 67.7% AChR-Ab+ responder rate vs 29.7% placebo. 84.1% showed improvement within first 2 weeks. Individualized dosing based on clinical response.',
+          pillars: ['disease_belief', 'treatment_philosophy', 'competitive_positioning'],
+        },
+        {
+          citation: 'Howard JF Jr. Ann N Y Acad Sci. 2018;1412(1):113-128',
+          title: 'Sole-author review: complement\'s role at the neuromuscular junction in myasthenia gravis',
+          insight: '74-88% of gMG patients have AChR autoantibodies. MAC formation required to induce EAMG and NMJ damage. Argues complement inhibition could preserve NMJ physiology.',
+          pillars: ['disease_belief'],
+        },
+        {
+          citation: 'Howard JF Jr et al. Lancet Neurol. 2017;16(12):976-986',
+          title: 'REGAIN Phase 3: Eculizumab in refractory generalised myasthenia gravis',
+          insight: 'First-author on eculizumab Phase 3. 76 hospitals, 17 countries. Demonstrates willingness to lead trials for complement class, not exclusively FcRn.',
+          pillars: ['treatment_philosophy', 'competitive_positioning'],
+        },
+        {
+          citation: 'Howard JF Jr et al. Expert Opin Investig Drugs. 2021;30(5):483-493',
+          title: 'Review of zilucoplan (UCB\'s C5 peptide inhibitor) for myasthenia gravis',
+          insight: 'States complement inhibitor therapy should be used "earlier in the treatment paradigm." Demonstrates openness to multiple MOAs.',
+          pillars: ['treatment_philosophy', 'competitive_positioning'],
+        },
+        {
+          citation: 'Howard JF Jr et al. Lancet Neurol. 2023;22(5):395-406',
+          title: 'RAISE Phase 3: Zilucoplan in generalised myasthenia gravis',
+          insight: 'Rapid onset at Week 1. Self-administered SC daily injection. Led pivotal trials for both FcRn and complement classes simultaneously.',
+          pillars: ['treatment_philosophy', 'competitive_positioning'],
+        },
+        {
+          citation: 'Howard JF Jr et al. J Autoimmun. 2024;149:103227',
+          title: 'ADAPT-SC Phase 3: Subcutaneous efgartigimod in generalised myasthenia gravis',
+          insight: 'Demonstrated SC non-inferiority to IV (66.4% vs 62.2% IgG reduction). 69.1% MG-ADL responders. Advocates for SC self-administration.',
+          pillars: ['treatment_philosophy'],
+        },
+        {
+          citation: 'Howard JF Jr et al. Front Neurol. 2024;14:1284444',
+          title: 'ADAPT+ OLE: 3-year open-label extension of efgartigimod',
+          insight: 'Up to 17 treatment cycles with sustained efficacy. Individualized cycle initiation. Efficacy in both AChR-Ab+ and AChR-Ab- populations.',
+          pillars: ['disease_belief', 'treatment_philosophy'],
+        },
+        {
+          citation: 'Howard JF Jr et al. Muscle Nerve. 2024;69(5):556-565',
+          title: 'CHAMPION-MG subgroup analysis: ravulizumab by time from diagnosis',
+          insight: 'Numerically greater improvement in patients treated ≤2 years vs >2 years from diagnosis. Supports early intervention before irreversible NMJ damage.',
+          pillars: ['disease_belief'],
+        },
+        {
+          citation: 'Vu T et al. NEJM Evid. 2022;1(5):EVIDoa2100066',
+          title: 'CHAMPION-MG: Ravulizumab in myasthenia gravis',
+          insight: 'Co-author (senior position) on ravulizumab Phase 3. Demonstrates continued engagement with Alexion alongside argenx FcRn work.',
+          pillars: ['competitive_positioning'],
+        },
+        {
+          citation: 'Howard JF Jr et al. Neurology. 2019;92(23):e2661-e2673',
+          title: 'Efgartigimod Phase 2: FcRn antagonist proof-of-concept in generalised myasthenia gravis',
+          insight: 'First-author Phase 2 establishing efgartigimod proof-of-concept. Early investigator commitment to FcRn mechanism. Published in AAN journal.',
+          pillars: ['treatment_philosophy'],
+        },
+        {
+          citation: 'AJMC Interview: "Mechanisms of Action of Newer MG Therapies" (Jan 2026)',
+          title: 'Dr James Howard on FcRn and complement mechanisms',
+          insight: 'On FcRn: blocking recycling shunts antibodies for destruction. On complement: "We have drugs targeting C5, C5b, and C3 further upstream." On NMJ damage: "Once it\'s gone, it\'s gone."',
+          pillars: ['disease_belief', 'treatment_philosophy'],
+        },
+        {
+          citation: 'AJMC Interview: "Complications of Standard MG Therapies" (Nov 2025)',
+          title: 'Dr James Howard on prednisone complications and unmet need',
+          insight: 'On prednisone: "we worry about diabetes, hypertension, osteopenia and osteoporosis... to say nothing of the mood changes." Underscores need for targeted alternatives.',
+          pillars: ['treatment_philosophy'],
+        },
+        {
+          citation: 'argenx Press Release / UNC Newsroom (Jun 2021; Dec 2021)',
+          title: 'ADAPT publication and VYVGART FDA approval quotes',
+          insight: '"Each patient experiences MG differently, making disease management unpredictable." On approval: "This therapy has the potential to transform the way we treat this disease."',
+          pillars: ['disease_belief', 'treatment_philosophy'],
+        },
+        {
+          citation: 'UNC Newsroom (Oct 2023)',
+          title: 'Zilucoplan FDA approval statement as RAISE lead investigator',
+          insight: '"Zilucoplan demonstrated rapid improvements with differences seen as early as one week, and provides a new treatment option for a broad population of AChR-Ab+ gMG patients."',
+          pillars: ['competitive_positioning'],
+        },
+        {
+          citation: 'ADAPT Lancet Neurol 2021 — Disclosure Statement',
+          title: 'Published conflict-of-interest disclosures',
+          insight: 'Research support from Alexion, argenx, CDC, MDA, NIH, PCORI, Ra Pharma/UCB. Honoraria from Alexion, argenx, Immunovant, Ra Pharma/UCB, Regeneron, Viela Bio.',
+          pillars: ['competitive_positioning'],
+        },
+        {
+          citation: 'RAISE-XT Ther Adv Neurol Disord 2024 — Disclosure Statement',
+          title: 'Updated conflict-of-interest disclosures',
+          insight: 'Adds Ad Scientiam, Cartesian Therapeutics, NMD Pharma to research support. Adds Janssen, Sanofi-Genzyme, Momenta to consulting. Confirms breadth across all gMG mechanism classes.',
+          pillars: ['competitive_positioning'],
+        },
+        {
+          citation: 'Howard JF Jr et al. Ther Adv Neurol Disord. 2024;17',
+          title: 'RAISE-XT OLE: Long-term zilucoplan safety and efficacy',
+          insight: 'First-author on zilucoplan open-label extension. Sustained benefit. Demonstrates continued UCB engagement alongside argenx advocacy.',
+          pillars: ['treatment_philosophy', 'competitive_positioning'],
+        },
+      ],
+    };
+  }
+
   return {
     identity: { ...phy, tier_score: phy.tier_score },
     prescribing,
@@ -1217,6 +1526,7 @@ export function getPersona(physicianId: string): Persona | null {
     sentiment: sentimentScores[physicianId] || [],
     engagements: engagementRecords[physicianId] || [],
     competitive,
+    intelligence,
   };
 }
 

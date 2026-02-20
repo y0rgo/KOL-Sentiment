@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fetchPersona, createSentimentScore, createEngagement } from '../api/client';
-import type { Persona, SentimentScore } from '../types';
+import type { Persona, SentimentScore, PersonaPillar } from '../types';
 import { formatDate } from '../utils/formatters';
 import { STATUS_COLORS } from '../utils/statusUtils';
 import {
@@ -16,6 +16,9 @@ import {
   Plus,
   X,
   Target,
+  Brain,
+  Lightbulb,
+  FileText,
 } from 'lucide-react';
 import TierBreakdown from '../components/TierBreakdown';
 
@@ -123,6 +126,49 @@ function ConversionBadge({ stage }: { stage: string | null }) {
 /* ------------------------------------------------------------------ */
 function Empty({ message }: { message: string }) {
   return <p className="text-sm text-gray-400 italic">{message}</p>;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Pillar card (for persona intelligence)                             */
+/* ------------------------------------------------------------------ */
+const PILLAR_CONFIG: Record<string, { icon: React.ElementType; border: string; accent: string }> = {
+  disease_belief: { icon: Brain, border: 'border-l-blue-500', accent: 'bg-blue-50' },
+  treatment_philosophy: { icon: Lightbulb, border: 'border-l-emerald-500', accent: 'bg-emerald-50' },
+  competitive_positioning: { icon: Shield, border: 'border-l-amber-500', accent: 'bg-amber-50' },
+};
+
+const PILLAR_TAG_COLORS: Record<string, string> = {
+  disease_belief: 'bg-blue-100 text-blue-700',
+  treatment_philosophy: 'bg-emerald-100 text-emerald-700',
+  competitive_positioning: 'bg-amber-100 text-amber-700',
+};
+
+const PILLAR_LABELS: Record<string, string> = {
+  disease_belief: 'Disease Belief',
+  treatment_philosophy: 'Treatment Philosophy',
+  competitive_positioning: 'Competitive Positioning',
+};
+
+function PillarCard({ pillar }: { pillar: PersonaPillar }) {
+  const config = PILLAR_CONFIG[pillar.name] ?? { icon: Lightbulb, border: 'border-l-gray-400', accent: 'bg-gray-50' };
+  const Icon = config.icon;
+  return (
+    <div className={`bg-white rounded-lg shadow-sm border-l-4 ${config.border} p-5 space-y-3`}>
+      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full ${config.accent}`}>
+        <Icon className="h-4 w-4 text-[#1e3a5f]" />
+        <h4 className="text-xs font-bold text-[#1e3a5f] uppercase tracking-wide">{pillar.label}</h4>
+      </div>
+      <p className="text-sm text-gray-700 leading-relaxed">{pillar.summary}</p>
+      <ul className="space-y-2">
+        {pillar.key_points.map((point, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm text-gray-600">
+            <span className="mt-1.5 flex-shrink-0 h-1.5 w-1.5 rounded-full bg-[#1e3a5f]/40" />
+            <span className="leading-relaxed">{point}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 /* ================================================================== */
@@ -294,6 +340,54 @@ export default function PersonaView() {
           </div>
         </div>
       </div>
+
+      {/* Persona Intelligence – Three-Pillar Synthesis */}
+      {persona.intelligence && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <Brain className="h-5 w-5 text-[#1e3a5f]" />
+            <h2 className="text-lg font-bold text-[#1e3a5f]">Persona Intelligence</h2>
+            {persona.intelligence.product_context && (
+              <span className="ml-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                vs. {persona.intelligence.product_context}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {persona.intelligence.pillars.map((pillar) => (
+              <PillarCard key={pillar.name} pillar={pillar} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Publication Evidence Map */}
+      {persona.intelligence?.evidence_map && persona.intelligence.evidence_map.length > 0 && (
+        <DomainCard icon={FileText} title="Publication Evidence Map">
+          <p className="text-xs text-gray-500 mb-4">
+            {persona.intelligence.evidence_map.length} sources mapped to persona pillars. Every persona insight is traceable to a specific, publicly available source.
+          </p>
+          <div className="space-y-4">
+            {persona.intelligence.evidence_map.map((source, i) => (
+              <div key={i} className="border-l-2 border-[#1e3a5f]/20 pl-4 py-1">
+                <p className="text-sm font-medium text-gray-800">{source.title}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{source.citation}</p>
+                <p className="text-sm text-gray-600 mt-1.5 italic leading-relaxed">&ldquo;{source.insight}&rdquo;</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {source.pillars.map((p) => (
+                    <span
+                      key={p}
+                      className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium ${PILLAR_TAG_COLORS[p] ?? 'bg-gray-100 text-gray-600'}`}
+                    >
+                      {PILLAR_LABELS[p] ?? p}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </DomainCard>
+      )}
 
       {/* Domain cards grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -476,6 +570,19 @@ export default function PersonaView() {
               </>
             ) : (
               <Empty message="No sentiment scores yet" />
+            )}
+
+            {persona.intelligence?.sentiment_rationale && (
+              <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="h-3.5 w-3.5 text-emerald-700" />
+                  <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wide">Source-Grounded Assessment Rationale</h4>
+                </div>
+                <p className="text-sm text-emerald-900 leading-relaxed">{persona.intelligence.sentiment_rationale}</p>
+                {persona.intelligence.product_context && (
+                  <p className="text-xs text-emerald-600 mt-2 font-medium">Product context: {persona.intelligence.product_context}</p>
+                )}
+              </div>
             )}
 
             <button
