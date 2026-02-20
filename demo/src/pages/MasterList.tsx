@@ -886,11 +886,11 @@ export default function MasterList() {
                             >
                               {p.kol_power_index}
                             </span>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block z-50 pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 max-w-[220px] whitespace-normal shadow-lg">
                                 {kolPowerTooltip(p)}
                               </div>
-                              <div className="w-2 h-2 bg-gray-900 rotate-45 absolute left-1/2 -translate-x-1/2 -bottom-1" />
+                              <div className="w-2 h-2 bg-gray-900 rotate-45 absolute left-1/2 -translate-x-1/2 -top-1" />
                             </div>
                           </div>
                         ) : (
@@ -910,11 +910,11 @@ export default function MasterList() {
                             >
                               {p.engagement_priority}
                             </span>
-                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 hidden group-hover:block z-50 pointer-events-none">
                               <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 max-w-[220px] whitespace-normal shadow-lg">
                                 {engPriorityTooltip(p)}
                               </div>
-                              <div className="w-2 h-2 bg-gray-900 rotate-45 absolute left-1/2 -translate-x-1/2 -bottom-1" />
+                              <div className="w-2 h-2 bg-gray-900 rotate-45 absolute left-1/2 -translate-x-1/2 -top-1" />
                             </div>
                           </div>
                         ) : (
