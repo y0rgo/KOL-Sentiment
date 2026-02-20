@@ -875,34 +875,48 @@ export default function MasterList() {
                       </td>
                       <td className="px-4 py-3 text-center">
                         {p.kol_power_index != null ? (
-                          <span
-                            title={kolPowerTooltip(p)}
-                            className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold cursor-help ${
-                              p.kol_power_index >= 80 ? 'bg-emerald-100 text-emerald-800' :
-                              p.kol_power_index >= 60 ? 'bg-blue-100 text-blue-800' :
-                              p.kol_power_index >= 40 ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-gray-100 text-gray-600'
-                            }`}
-                          >
-                            {p.kol_power_index}
-                          </span>
+                          <div className="relative group inline-flex justify-center">
+                            <span
+                              className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold cursor-help ${
+                                p.kol_power_index >= 80 ? 'bg-emerald-100 text-emerald-800' :
+                                p.kol_power_index >= 60 ? 'bg-blue-100 text-blue-800' :
+                                p.kol_power_index >= 40 ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-gray-100 text-gray-600'
+                              }`}
+                            >
+                              {p.kol_power_index}
+                            </span>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 max-w-[220px] whitespace-normal shadow-lg">
+                                {kolPowerTooltip(p)}
+                              </div>
+                              <div className="w-2 h-2 bg-gray-900 rotate-45 absolute left-1/2 -translate-x-1/2 -bottom-1" />
+                            </div>
+                          </div>
                         ) : (
                           <span className="text-gray-300">&mdash;</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {p.engagement_priority != null ? (
-                          <span
-                            title={engPriorityTooltip(p)}
-                            className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold cursor-help ${
-                              p.engagement_priority >= 70 ? 'bg-red-100 text-red-800' :
-                              p.engagement_priority >= 50 ? 'bg-orange-100 text-orange-800' :
-                              p.engagement_priority >= 30 ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}
-                          >
-                            {p.engagement_priority}
-                          </span>
+                          <div className="relative group inline-flex justify-center">
+                            <span
+                              className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold cursor-help ${
+                                p.engagement_priority >= 70 ? 'bg-red-100 text-red-800' :
+                                p.engagement_priority >= 50 ? 'bg-orange-100 text-orange-800' :
+                                p.engagement_priority >= 30 ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}
+                            >
+                              {p.engagement_priority}
+                            </span>
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50 pointer-events-none">
+                              <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 max-w-[220px] whitespace-normal shadow-lg">
+                                {engPriorityTooltip(p)}
+                              </div>
+                              <div className="w-2 h-2 bg-gray-900 rotate-45 absolute left-1/2 -translate-x-1/2 -bottom-1" />
+                            </div>
+                          </div>
                         ) : (
                           <span className="text-gray-300">&mdash;</span>
                         )}
