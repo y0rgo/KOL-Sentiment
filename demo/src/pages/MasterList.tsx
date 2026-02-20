@@ -829,10 +829,16 @@ export default function MasterList() {
                           {SOURCE_LABELS[p.source_channel] ?? p.source_channel}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-center">
+                      <td className="px-4 py-3">
                         {p.tier ? (
-                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-navy-50 text-navy-600 text-xs font-bold">
-                            {p.tier}
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium whitespace-nowrap ${
+                            p.tier === 'global_national' ? 'bg-indigo-100 text-indigo-800' :
+                            p.tier === 'regional_institutional' ? 'bg-blue-100 text-blue-800' :
+                            p.tier === 'local_community' ? 'bg-green-100 text-green-800' :
+                            p.tier === 'rising_star' ? 'bg-amber-100 text-amber-800' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
+                            {p.tier.replace(/_/g, ' ')}
                           </span>
                         ) : (
                           <span className="text-gray-300">&mdash;</span>
