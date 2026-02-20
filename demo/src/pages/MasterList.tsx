@@ -728,19 +728,27 @@ export default function MasterList() {
                       }
                       setPage(1);
                     } : undefined}
-                    className={`px-4 py-3 font-semibold text-xs uppercase tracking-wider ${
+                    className={`px-4 py-3 text-xs uppercase tracking-wider select-none ${
                       col.center ? 'text-center' : ''
                     } ${col.minW ? 'min-w-[120px]' : ''} ${
-                      col.key ? 'cursor-pointer hover:bg-white/10 select-none transition-colors' : ''
+                      col.key ? 'cursor-pointer' : ''
+                    } ${
+                      col.key && sortBy === col.key
+                        ? 'font-bold text-white bg-white/15'
+                        : col.key
+                          ? 'font-semibold text-white/80 hover:text-white'
+                          : 'font-semibold text-white/80'
                     }`}
                   >
                     <span className="inline-flex items-center gap-1">
                       {col.label}
-                      {col.key && sortBy === col.key && (
+                      {col.key && sortBy === col.key ? (
                         sortOrder === 'asc'
-                          ? <ArrowUp className="w-3 h-3" />
-                          : <ArrowDown className="w-3 h-3" />
-                      )}
+                          ? <ArrowUp className="w-3.5 h-3.5" />
+                          : <ArrowDown className="w-3.5 h-3.5" />
+                      ) : col.key ? (
+                        <ArrowUpDown className="w-3 h-3 opacity-40" />
+                      ) : null}
                     </span>
                   </th>
                 ))}
