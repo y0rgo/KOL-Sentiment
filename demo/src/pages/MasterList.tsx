@@ -34,8 +34,10 @@ const PAGE_SIZES = [25, 50, 100] as const;
 
 const SORT_OPTIONS = [
   { value: 'last_name', label: 'Name' },
-  { value: 'created_at', label: 'Date Created' },
+  { value: 'kol_power_index', label: 'KOL Power Index' },
+  { value: 'engagement_priority', label: 'Engagement Priority' },
   { value: 'completeness_score', label: 'Completeness' },
+  { value: 'created_at', label: 'Date Created' },
 ] as const;
 
 const US_STATES = [
@@ -458,8 +460,8 @@ export default function MasterList() {
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [sourceChannel, setSourceChannel] = useState('');
   const [stateFilter, setStateFilter] = useState('');
-  const [sortBy, setSortBy] = useState('last_name');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [sortBy, setSortBy] = useState('kol_power_index');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(25);
@@ -745,6 +747,8 @@ export default function MasterList() {
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Status</th>
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Source</th>
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Tier</th>
+                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider text-center">KOL Power</th>
+                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider text-center">Eng. Priority</th>
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider min-w-[120px]">Completeness</th>
                 <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Created</th>
               </tr>
@@ -752,7 +756,7 @@ export default function MasterList() {
             <tbody className="divide-y divide-gray-100">
               {loading && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
+                  <td colSpan={11} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
                       <span className="text-sm text-gray-500">Loading physicians...</span>
@@ -763,7 +767,7 @@ export default function MasterList() {
 
               {!loading && physicians.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="px-4 py-16 text-center">
+                  <td colSpan={11} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <Users className="w-12 h-12 text-gray-300" />
                       <div>
@@ -829,6 +833,34 @@ export default function MasterList() {
                         {p.tier ? (
                           <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-navy-50 text-navy-600 text-xs font-bold">
                             {p.tier}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">&mdash;</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {p.kol_power_index != null ? (
+                          <span className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold ${
+                            p.kol_power_index >= 80 ? 'bg-emerald-100 text-emerald-800' :
+                            p.kol_power_index >= 60 ? 'bg-blue-100 text-blue-800' :
+                            p.kol_power_index >= 40 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-600'
+                          }`}>
+                            {p.kol_power_index}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">&mdash;</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        {p.engagement_priority != null ? (
+                          <span className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full text-xs font-bold ${
+                            p.engagement_priority >= 70 ? 'bg-red-100 text-red-800' :
+                            p.engagement_priority >= 50 ? 'bg-orange-100 text-orange-800' :
+                            p.engagement_priority >= 30 ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }`}>
+                            {p.engagement_priority}
                           </span>
                         ) : (
                           <span className="text-gray-300">&mdash;</span>

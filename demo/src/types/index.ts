@@ -29,6 +29,8 @@ export interface Physician {
   priority_rank: number | null;
   is_active: boolean;
   notes: string | null;
+  kol_power_index: number | null;
+  engagement_priority: number | null;
   created_at: string;
   updated_at: string;
 }
