@@ -470,12 +470,10 @@ export default function MasterList() {
 
   const [showSourceDropdown, setShowSourceDropdown] = useState(false);
   const [showStateDropdown, setShowStateDropdown] = useState(false);
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [showPageSizeDropdown, setShowPageSizeDropdown] = useState(false);
 
   const sourceRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<HTMLDivElement>(null);
-  const sortRef = useRef<HTMLDivElement>(null);
   const pageSizeRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -492,8 +490,6 @@ export default function MasterList() {
         setShowSourceDropdown(false);
       if (stateRef.current && !stateRef.current.contains(e.target as Node))
         setShowStateDropdown(false);
-      if (sortRef.current && !sortRef.current.contains(e.target as Node))
-        setShowSortDropdown(false);
       if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node))
         setShowPageSizeDropdown(false);
     }
@@ -661,38 +657,6 @@ export default function MasterList() {
             )}
           </div>
 
-          {/* Sort dropdown */}
-          <div className="relative" ref={sortRef}>
-            <button
-              onClick={() => setShowSortDropdown(!showSortDropdown)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <ArrowUpDown className="w-4 h-4" />
-              {SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Sort'}
-            </button>
-            {showSortDropdown && (
-              <div className="absolute top-full right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-30 py-1">
-                {SORT_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => { setSortBy(opt.value); setShowSortDropdown(false); setPage(1); }}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${sortBy === opt.value ? 'font-medium text-teal-600' : 'text-gray-700'}`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => { setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc')); setPage(1); }}
-            className="inline-flex items-center gap-1 px-3 py-2 text-sm border border-gray-300 bg-white text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
-            title={sortOrder === 'asc' ? 'Ascending' : 'Descending'}
-          >
-            {sortOrder === 'asc' ? <ArrowUp className="w-4 h-4" /> : <ArrowDown className="w-4 h-4" />}
-          </button>
-
           {hasActiveFilters && (
             <button
               onClick={clearFilters}
@@ -740,17 +704,46 @@ export default function MasterList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="bg-navy-500 text-white text-left">
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Name</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Credentials</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Institution</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">State</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Status</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Source</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Tier</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider text-center">KOL Power</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider text-center">Eng. Priority</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider min-w-[120px]">Completeness</th>
-                <th className="px-4 py-3 font-semibold text-xs uppercase tracking-wider">Created</th>
+                {([
+                  { key: 'last_name', label: 'Name' },
+                  { key: null, label: 'Credentials' },
+                  { key: 'institution_name', label: 'Institution' },
+                  { key: 'state', label: 'State' },
+                  { key: 'record_status', label: 'Status' },
+                  { key: 'source_channel', label: 'Source' },
+                  { key: 'tier', label: 'Tier' },
+                  { key: 'kol_power_index', label: 'KOL Power', center: true },
+                  { key: 'engagement_priority', label: 'Eng. Priority', center: true },
+                  { key: 'completeness_score', label: 'Completeness', minW: true },
+                  { key: 'created_at', label: 'Created' },
+                ] as { key: string | null; label: string; center?: boolean; minW?: boolean }[]).map((col) => (
+                  <th
+                    key={col.label}
+                    onClick={col.key ? () => {
+                      if (sortBy === col.key) {
+                        setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+                      } else {
+                        setSortBy(col.key!);
+                        setSortOrder(col.key === 'last_name' || col.key === 'state' || col.key === 'institution_name' ? 'asc' : 'desc');
+                      }
+                      setPage(1);
+                    } : undefined}
+                    className={`px-4 py-3 font-semibold text-xs uppercase tracking-wider ${
+                      col.center ? 'text-center' : ''
+                    } ${col.minW ? 'min-w-[120px]' : ''} ${
+                      col.key ? 'cursor-pointer hover:bg-white/10 select-none transition-colors' : ''
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {col.label}
+                      {col.key && sortBy === col.key && (
+                        sortOrder === 'asc'
+                          ? <ArrowUp className="w-3 h-3" />
+                          : <ArrowDown className="w-3 h-3" />
+                      )}
+                    </span>
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
