@@ -19,6 +19,7 @@ class BaseIngestionClient(ABC):
     source_name: str = ""
     max_concurrent: int = 3
     delay_between: float = 0.35  # seconds between requests
+    request_timeout: float = 30.0  # seconds per request
 
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -28,7 +29,7 @@ class BaseIngestionClient(ABC):
 
     async def get_client(self) -> httpx.AsyncClient:
         if self._client is None or self._client.is_closed:
-            self._client = httpx.AsyncClient(timeout=30.0)
+            self._client = httpx.AsyncClient(timeout=self.request_timeout)
         return self._client
 
     async def close(self):

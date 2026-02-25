@@ -15,8 +15,9 @@ DATASET_ID = "fb3a65aa-c901-4a38-a813-b04b00dfa2a9"
 
 class OpenPaymentsClient(BaseIngestionClient):
     source_name = "open_payments"
-    max_concurrent = 3
-    delay_between = 0.2
+    max_concurrent = 1  # sequential — API is very slow
+    delay_between = 0.5
+    request_timeout = 90.0  # CMS API can take 60+ seconds per query
 
     async def test_connection(self) -> dict:
         try:
@@ -88,9 +89,9 @@ class OpenPaymentsClient(BaseIngestionClient):
                         norm = self._normalize_payment(payment)
                         affiliation = CompetitiveAffiliation(
                             physician_id=physician.id,
-                            company=norm.get("company"),
-                            affiliation_type=norm.get("payment_type"),
-                            product_name=norm.get("drug_name"),
+                            company=(norm.get("company") or "")[:100],
+                            affiliation_type=(norm.get("payment_type") or "")[:50],
+                            product_name=(norm.get("drug_name") or "")[:100],
                             year=norm.get("year"),
                             payment_amount=norm.get("amount"),
                             data_source="open_payments",
@@ -107,7 +108,7 @@ class OpenPaymentsClient(BaseIngestionClient):
                         run,
                         f"NPI:{physician.npi}",
                         "error",
-                        {"error": str(e)},
+                        {"error": f"{type(e).__name__}: {e}"},
                     )
 
             await self.complete_run(run)
