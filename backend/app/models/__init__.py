@@ -14,6 +14,9 @@ from app.models.engagement import Engagement
 from app.models.competitive import CompetitiveAffiliation
 from app.models.tier import TierDimensionWeight, TierDimensionScore
 from app.models.priority import PriorityWeight, PriorityScore
+from app.models.data_source import DataSource
+from app.models.ingestion import IngestionRun, IngestionLog
+from app.models.publication_access import PublicationAccess
 
 __all__ = [
     "Physician",
@@ -39,4 +42,8 @@ __all__ = [
     "TierDimensionScore",
     "PriorityWeight",
     "PriorityScore",
+    "DataSource",
+    "IngestionRun",
+    "IngestionLog",
+    "PublicationAccess",
 ]

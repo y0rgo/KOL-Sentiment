@@ -9,6 +9,12 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # Ingestion API keys (all optional)
+    NCBI_API_KEY: str = ""
+    OPENALEX_EMAIL: str = ""
+    UNPAYWALL_EMAIL: str = ""
+    OPEN_PAYMENTS_APP_TOKEN: str = ""
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

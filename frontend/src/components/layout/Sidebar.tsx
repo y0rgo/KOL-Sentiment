@@ -10,6 +10,7 @@ import {
   Sliders,
   Target,
   Settings,
+  Database,
 } from 'lucide-react';
 import { fetchReviewQueueStats } from '../../api/client';
 import { Logo } from '../ui/Logo';
@@ -49,6 +50,7 @@ const Sidebar: React.FC = () => {
     { label: 'Dashboard', path: '/dashboard', icon: BarChart3 },
     { label: 'Priority Matrix', path: '/priority-matrix', icon: Target },
     { label: 'Tier Config', path: '/tier-config', icon: Sliders },
+    { label: 'Data Sources', path: '/data-sources', icon: Database },
     { label: 'Settings', path: '/settings', icon: Settings },
   ];
 

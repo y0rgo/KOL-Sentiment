@@ -132,4 +132,26 @@ export const recomputeSinglePriority = (physicianId: string) =>
 export const fetchPriorityMatrix = () =>
   api.get('/priority/matrix');
 
+// Data Ingestion
+export const fetchDataSources = () =>
+  api.get('/ingestion/sources');
+
+export const testDataSource = (name: string) =>
+  api.post(`/ingestion/sources/${name}/test`);
+
+export const sampleDataSource = (name: string, limit: number = 10) =>
+  api.post(`/ingestion/sources/${name}/sample`, null, { params: { limit } });
+
+export const triggerIngestionRun = (name: string, limit: number = 100) =>
+  api.post(`/ingestion/sources/${name}/run`, { limit });
+
+export const fetchIngestionRuns = (params?: Record<string, any>) =>
+  api.get('/ingestion/runs', { params });
+
+export const fetchIngestionRun = (runId: string) =>
+  api.get(`/ingestion/runs/${runId}`);
+
+export const fetchAccessReport = () =>
+  api.get('/ingestion/access-report');
+
 export default api;

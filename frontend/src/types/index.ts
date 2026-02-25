@@ -278,3 +278,63 @@ export interface PriorityConfigResponse {
   disease_id: string | null;
   weights: PriorityWeight[];
 }
+
+// Data Ingestion
+export interface DataSource {
+  id: string;
+  name: string;
+  display_name: string;
+  base_url: string;
+  api_key_required: boolean;
+  api_key_configured: boolean;
+  status: 'connected' | 'disconnected' | 'error' | 'untested';
+  last_tested_at: string | null;
+  last_successful_at: string | null;
+  last_error_message: string | null;
+  rate_limit_info: Record<string, any> | null;
+}
+
+export interface IngestionRun {
+  id: string;
+  data_source_id: string;
+  source_name: string | null;
+  run_type: 'sample' | 'full' | 'incremental';
+  parameters: Record<string, any> | null;
+  status: 'pending' | 'running' | 'completed' | 'failed';
+  records_fetched: number;
+  records_new: number;
+  records_updated: number;
+  records_errors: number;
+  started_at: string | null;
+  completed_at: string | null;
+  error_message: string | null;
+  created_at: string | null;
+  logs?: IngestionLog[];
+}
+
+export interface IngestionLog {
+  id: string;
+  record_identifier: string | null;
+  action: 'created' | 'updated' | 'skipped' | 'error';
+  detail: Record<string, any> | null;
+  created_at: string | null;
+}
+
+export interface AccessReportJournal {
+  journal: string;
+  total: number;
+  checked: number;
+  open_access: number;
+  paywalled: number;
+  unchecked: number;
+  oa_percent: number | null;
+}
+
+export interface AccessReport {
+  journals: AccessReportJournal[];
+  summary: {
+    total_publications: number;
+    total_checked: number;
+    total_open_access: number;
+  };
+}

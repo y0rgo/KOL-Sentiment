@@ -12,6 +12,7 @@ import DiscoveryPortal from './pages/DiscoveryPortal';
 import Settings from './pages/Settings';
 import TierConfig from './pages/TierConfig';
 import PriorityMatrix from './pages/PriorityMatrix';
+import DataSources from './pages/DataSources';
 
 export default function App() {
   const location = useLocation();
@@ -34,6 +35,7 @@ export default function App() {
                 <Route path="/persona/:id" element={<PersonaView />} />
                 <Route path="/tier-config" element={<TierConfig />} />
                 <Route path="/priority-matrix" element={<PriorityMatrix />} />
+                <Route path="/data-sources" element={<DataSources />} />
                 <Route path="/settings" element={<Settings />} />
               </Routes>
             </PageTransition>
