@@ -2,10 +2,12 @@
 from datetime import datetime
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.ingestion.base import BaseIngestionClient
 from app.ingestion.config import CLINICALTRIALS_CONDITION_TERMS
 from app.models.trial import ClinicalTrial, TrialInvestigator
+from app.models.discovered_author import DiscoveredAuthor
 from app.models.ingestion import IngestionRun
 from app.services.match_engine import MatchEngine
 
@@ -94,7 +96,7 @@ class ClinicalTrialsClient(BaseIngestionClient):
                 await self.db.flush()
                 await self.log_record(run, nct_id, "created")
 
-            # Link investigators
+            # Link investigators + stage all in discovered_authors
             for inv in study.get("investigators", []):
                 first = inv.get("first_name", "").strip()
                 last = inv.get("last_name", "").strip()
@@ -117,6 +119,30 @@ class ClinicalTrialsClient(BaseIngestionClient):
                             site_name=inv.get("site_name"),
                         )
                         self.db.add(link)
+
+                # Map ClinicalTrials.gov roles to normalized roles
+                raw_role = (inv.get("role") or "").lower().replace(" ", "_")
+                if "principal" in raw_role:
+                    role = "principal_investigator"
+                elif "director" in raw_role:
+                    role = "study_director"
+                else:
+                    role = raw_role or None
+
+                # Stage every investigator in discovered_authors
+                stmt = pg_insert(DiscoveredAuthor).values(
+                    first_name=first,
+                    last_name=last,
+                    first_name_norm=first.lower().strip(),
+                    last_name_norm=last.lower().strip(),
+                    source_type="clinicaltrials",
+                    source_identifier=nct_id,
+                    role=role,
+                    journal_name=None,
+                    trial_id=trial.id,
+                    physician_id=physician.id if physician else None,
+                ).on_conflict_do_nothing(constraint="uq_discovered_author_source")
+                await self.db.execute(stmt)
 
             await self.db.flush()
 
@@ -149,7 +175,9 @@ class ClinicalTrialsClient(BaseIngestionClient):
         investigators = []
         for official in contacts.get("overallOfficials", []):
             name = official.get("name", "")
-            parts = name.replace(",", "").split()
+            # Split on comma to separate name from credentials (e.g. "Miriam Freimer, MD")
+            name_part = name.split(",")[0].strip()
+            parts = name_part.split()
             if len(parts) >= 2:
                 investigators.append({
                     "first_name": parts[0],

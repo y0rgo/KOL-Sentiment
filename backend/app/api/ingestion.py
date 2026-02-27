@@ -12,6 +12,8 @@ from app.models.ingestion import IngestionRun, IngestionLog
 from app.models.publication import Publication
 from app.models.publication_access import PublicationAccess
 from app.ingestion import CLIENT_REGISTRY
+from app.services.discovery_service import DiscoveryService
+from app.services.sync_orchestrator import SyncOrchestrator
 
 router = APIRouter()
 
@@ -78,6 +80,33 @@ async def trigger_run(
         return _run_to_dict(run)
     finally:
         await client.close()
+
+
+# --- Pipeline Orchestration ---
+
+@router.post("/sync-all")
+async def sync_all(body: dict | None = None, db: AsyncSession = Depends(get_db)):
+    """Run the full HARVEST -> PROMOTE -> ENRICH pipeline."""
+    article_limit = (body or {}).get("article_limit", 30)
+    trial_limit = (body or {}).get("trial_limit", 20)
+    enrichment_limit = (body or {}).get("enrichment_limit", 50)
+
+    orchestrator = SyncOrchestrator(db)
+    result = await orchestrator.run_all(
+        article_limit=article_limit,
+        trial_limit=trial_limit,
+        enrichment_limit=enrichment_limit,
+    )
+    return result
+
+
+@router.post("/discover")
+async def run_discovery(db: AsyncSession = Depends(get_db)):
+    """Run only the discovery/promotion step on existing discovered_authors."""
+    service = DiscoveryService(db)
+    result = await service.run()
+    await db.commit()
+    return result
 
 
 # --- Ingestion Runs ---

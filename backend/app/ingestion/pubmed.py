@@ -4,11 +4,13 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.config import settings
 from app.ingestion.base import BaseIngestionClient
 from app.ingestion.config import PUBMED_SEARCH_QUERY, GMG_DRUG_NAMES
 from app.models.publication import Publication, PublicationAuthor
+from app.models.discovered_author import DiscoveredAuthor
 from app.models.ingestion import IngestionRun
 from app.services.match_engine import MatchEngine
 
@@ -141,7 +143,7 @@ class PubMedClient(BaseIngestionClient):
                 await self.db.flush()
                 await self.log_record(run, f"PMID:{pmid}", "created")
 
-            # Link authors to physicians
+            # Link authors to physicians + stage all in discovered_authors
             for author in article.get("authors", []):
                 first = author.get("first_name", "").strip()
                 last = author.get("last_name", "").strip()
@@ -164,6 +166,24 @@ class PubMedClient(BaseIngestionClient):
                             author_position=author.get("position"),
                         )
                         self.db.add(link)
+
+                # Stage every author in discovered_authors
+                role = author.get("position")
+                if role:
+                    role = f"{role}_author"  # "first" -> "first_author"
+                stmt = pg_insert(DiscoveredAuthor).values(
+                    first_name=first,
+                    last_name=last,
+                    first_name_norm=first.lower().strip(),
+                    last_name_norm=last.lower().strip(),
+                    source_type="pubmed",
+                    source_identifier=f"PMID:{pmid}",
+                    role=role,
+                    journal_name=article.get("journal"),
+                    publication_id=pub.id,
+                    physician_id=physician.id if physician else None,
+                ).on_conflict_do_nothing(constraint="uq_discovered_author_source")
+                await self.db.execute(stmt)
 
             await self.db.flush()
 

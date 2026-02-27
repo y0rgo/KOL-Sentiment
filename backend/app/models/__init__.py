@@ -17,6 +17,7 @@ from app.models.priority import PriorityWeight, PriorityScore
 from app.models.data_source import DataSource
 from app.models.ingestion import IngestionRun, IngestionLog
 from app.models.publication_access import PublicationAccess
+from app.models.discovered_author import DiscoveredAuthor
 
 __all__ = [
     "Physician",
@@ -46,4 +47,5 @@ __all__ = [
     "IngestionRun",
     "IngestionLog",
     "PublicationAccess",
+    "DiscoveredAuthor",
 ]

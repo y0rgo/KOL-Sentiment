@@ -6,10 +6,12 @@ especially European journals, preprints, and full-text mined content.
 from datetime import date
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from app.ingestion.base import BaseIngestionClient
 from app.ingestion.config import GMG_DRUG_NAMES
 from app.models.publication import Publication, PublicationAuthor
+from app.models.discovered_author import DiscoveredAuthor
 from app.models.ingestion import IngestionRun
 from app.services.match_engine import MatchEngine
 
@@ -131,7 +133,7 @@ class EuropePMCClient(BaseIngestionClient):
                 await self.db.flush()
                 await self.log_record(run, identifier, "created")
 
-            # Link authors to physicians
+            # Link authors to physicians + stage all in discovered_authors
             for author in article.get("authors", []):
                 first = author.get("first_name", "").strip()
                 last = author.get("last_name", "").strip()
@@ -153,6 +155,24 @@ class EuropePMCClient(BaseIngestionClient):
                             author_position=author.get("position"),
                         )
                         self.db.add(link)
+
+                # Stage every author in discovered_authors
+                role = author.get("position")
+                if role:
+                    role = f"{role}_author"
+                stmt = pg_insert(DiscoveredAuthor).values(
+                    first_name=first,
+                    last_name=last,
+                    first_name_norm=first.lower().strip(),
+                    last_name_norm=last.lower().strip(),
+                    source_type="europe_pmc",
+                    source_identifier=identifier,
+                    role=role,
+                    journal_name=article.get("journal"),
+                    publication_id=pub.id,
+                    physician_id=physician.id if physician else None,
+                ).on_conflict_do_nothing(constraint="uq_discovered_author_source")
+                await self.db.execute(stmt)
 
             await self.db.flush()
 
