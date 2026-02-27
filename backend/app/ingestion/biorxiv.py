@@ -15,6 +15,7 @@ from app.models.publication import Publication, PublicationAuthor
 from app.models.discovered_author import DiscoveredAuthor
 from app.models.ingestion import IngestionRun
 from app.services.match_engine import MatchEngine
+from app.utils.name_normalizer import normalize_name
 
 BIORXIV_BASE = "https://api.biorxiv.org/details"
 
@@ -191,8 +192,8 @@ class BiorxivClient(BaseIngestionClient):
                 stmt = pg_insert(DiscoveredAuthor).values(
                     first_name=first,
                     last_name=last,
-                    first_name_norm=first.lower().strip(),
-                    last_name_norm=last.lower().strip(),
+                    first_name_norm=normalize_name(first),
+                    last_name_norm=normalize_name(last),
                     source_type="biorxiv",
                     source_identifier=identifier,
                     role=role,
